@@ -1,8 +1,4 @@
-"""FastAPI application entry point.
-
-Per TODO.md Phase 3:
-- Add examples to HoneypotRequest and HoneypotResponse schema.
-"""
+"""FastAPI application entry point."""
 
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
@@ -11,7 +7,7 @@ from fastapi import FastAPI
 
 from app.db import init_db_async
 from app.logging import setup_logging
-from app.routes import router
+from app.api.routes import router
 
 
 @asynccontextmanager

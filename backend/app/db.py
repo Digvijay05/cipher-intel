@@ -52,14 +52,14 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 def init_db() -> None:
     """Initialize database tables synchronously."""
-    from app.db_models import Base  # noqa: F401
+    from app.models.db_models import Base  # noqa: F401
 
     Base.metadata.create_all(bind=sync_engine)
 
 
 async def init_db_async() -> None:
     """Initialize database tables asynchronously."""
-    from app.db_models import Base  # noqa: F401
+    from app.models.db_models import Base  # noqa: F401
 
     async with async_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
