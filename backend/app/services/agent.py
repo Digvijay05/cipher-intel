@@ -146,7 +146,7 @@ class AgentController:
             logger.info(f"Created new session: {session_id}")
 
         # 2. Run scam detection
-        scam_result = detect_scam(message.text)
+        scam_result = detect_scam(message.text, previous_session_score=session.scam_score)
         logger.debug(f"Scam detection: {scam_result}")
 
         # 3. Update session state

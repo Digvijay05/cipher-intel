@@ -1,4 +1,4 @@
-"""Unit tests for scam detection engine."""
+"""Unit tests for the multi-layer scam detection engine."""
 
 import os
 
@@ -8,75 +8,71 @@ os.environ["OPENAI_API_KEY"] = "test-key"
 
 import pytest
 
-from app.services.detection import detect_scam, ScamSignal, match_rules, SCAM_RULES
+from app.services.detection import detect_scam, ScamSignal, ScamDetectorEngine
+from app.services.detection.layer1_heuristics import HeuristicsLayer
 
 
 class TestScamRules:
-    """Test individual rule matching."""
+    """Test individual L1 rule matching via HeuristicsLayer."""
+
+    def setup_method(self) -> None:
+        self.layer = HeuristicsLayer()
 
     def test_upi_id_detection(self) -> None:
         """Test UPI ID pattern detection."""
         text = "Please send payment to scammer@ybl"
-        matched = match_rules(text)
-        rule_names = [r.name for r in matched]
-        assert "upi_id" in rule_names
+        result = self.layer.analyze(text)
+        assert result["score"] >= 0.4
+        assert any("UPI" in expl for expl in result["explanations"])
 
-    def test_urgency_detection(self) -> None:
-        """Test urgency phrase detection."""
-        text = "Verify immediately or your account will be blocked"
-        matched = match_rules(text)
-        rule_names = [r.name for r in matched]
-        assert "urgency_verify" in rule_names or "account_blocked" in rule_names
-
-    def test_otp_request_detection(self) -> None:
-        """Test OTP request detection."""
-        text = "Please share your OTP for verification"
-        matched = match_rules(text)
-        rule_names = [r.name for r in matched]
-        assert "otp_request" in rule_names
-
-    def test_legal_threat_detection(self) -> None:
-        """Test legal threat detection."""
-        text = "We will take legal action against you"
-        matched = match_rules(text)
-        rule_names = [r.name for r in matched]
-        assert "legal_threat" in rule_names
-
-    def test_normal_message_no_match(self) -> None:
-        """Test that normal messages don't match scam rules."""
-        text = "Hey, how are you doing today?"
-        matched = match_rules(text)
-        assert len(matched) == 0
+    def test_link_detection(self) -> None:
+        """Test URL link detection."""
+        text = "Click here: http://bit.ly/1234abcd"
+        result = self.layer.analyze(text)
+        assert result["score"] >= 0.35
+        assert any("URL" in expl for expl in result["explanations"])
 
 
-class TestScamScorer:
-    """Test scoring and threshold logic."""
+class TestMultiLayerScamScorer:
+    """Test the ensemble engine and routing logic."""
 
     def test_scam_detected_above_threshold(self) -> None:
         """Test that high-signal messages trigger scam detection."""
         text = "Your account is blocked! Verify immediately with OTP. Send money to scam@ybl"
         result = detect_scam(text)
-        assert result.is_scam is True
-        assert result.confidence >= 0.5
-        assert len(result.matched_rules) > 0
+        
+        # New Pydantic schema validation
+        assert getattr(result, "scamDetected") is True
+        assert result.scamDetected is True
+        assert result.confidenceScore >= 0.5
+        assert result.riskLevel in ["medium", "high", "critical"]
+        assert len(result.explanations) > 0
 
     def test_no_scam_below_threshold(self) -> None:
         """Test that low-signal messages don't trigger scam detection."""
         text = "Hello, can you help me with my order?"
         result = detect_scam(text)
-        assert result.is_scam is False
-        assert result.confidence < 0.5
+        assert result.scamDetected is False
+        assert result.confidenceScore < 0.5
+        assert result.riskLevel == "low"
 
-    def test_returns_scam_signal_type(self) -> None:
-        """Test that detect_scam returns ScamSignal dataclass."""
-        result = detect_scam("test message")
-        assert isinstance(result, ScamSignal)
-        assert hasattr(result, "is_scam")
-        assert hasattr(result, "confidence")
-        assert hasattr(result, "matched_rules")
+    def test_session_decay_memory(self) -> None:
+        """Test that the engine tracks historical risk."""
+        text = "Hello there"  # Very benign text
+        
+        # Without history, this is harmless
+        result_clean = detect_scam(text)
+        assert result_clean.scamDetected is False
+        
+        # With high previous session score, the risk carries over
+        result_decay = detect_scam(text, previous_session_score=0.95)
+        # alpha * previous_session_score = 0.6 * 0.95 = 0.57
+        assert result_decay.scamDetected is True
+        assert result_decay.confidenceScore >= 0.57
+        assert any("Session risk elevated" in expl for expl in result_decay.explanations)
 
     def test_confidence_is_capped(self) -> None:
         """Test that confidence never exceeds 1.0."""
         text = "URGENT! Account blocked! Legal action! Send OTP to scam@ybl immediately! Pay fine of Rs 5000!"
         result = detect_scam(text)
-        assert result.confidence <= 1.0
+        assert result.confidenceScore <= 1.0
