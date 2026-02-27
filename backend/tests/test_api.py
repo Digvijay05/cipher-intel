@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 # Patch config before importing app
 with patch.dict(
     "os.environ",
-    {"HONEYPOT_API_KEY": "test-key", "OPENAI_API_KEY": "test-openai-key"},
+    {"CIPHER_API_KEY": "test-key", "OPENAI_API_KEY": "test-openai-key"},
 ):
     from app.main import app
 

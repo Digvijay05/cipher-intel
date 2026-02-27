@@ -1,8 +1,8 @@
 # ==============================================================================
-# Docker Compose for Honeypot API
+# Docker Compose for CIPHER API
 # ==============================================================================
 # Services:
-# - honeypot-backend: FastAPI application
+# - cipher-api: FastAPI application
 # - redis: Session storage
 #
 # Usage:
@@ -13,16 +13,16 @@
 # ==============================================================================
 
 services:
-  honeypot-backend:
+  cipher-api:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: honeypot-api
+    container_name: cipher-api
     ports:
       - "8000:8000"
     environment:
       # Required secrets (from .env file)
-      - HONEYPOT_API_KEY=${HONEYPOT_API_KEY}
+      - CIPHER_API_KEY=${CIPHER_API_KEY}
       # Ollama Cloud Configuration (Primary LLM Provider)
       - OLLAMA_API_KEY=${OLLAMA_API_KEY}
       - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma3:27b-cloud}
@@ -39,6 +39,8 @@ services:
       - LOG_FORMAT=${LOG_FORMAT:-json}
       # Session config
       - MAX_SESSION_MESSAGES=${MAX_SESSION_MESSAGES:-20}
+      # CIPHER callback config
+      - CIPHER_CALLBACK_URL=${CIPHER_CALLBACK_URL:-https://api.yourdomain.com/v1/final-result}
     depends_on:
       redis:
         condition: service_healthy
@@ -59,7 +61,7 @@ services:
           cpus: '0.25'
           memory: 128M
     networks:
-      - honeypot-net
+      - cipher-net
     logging:
       driver: "json-file"
       options:
@@ -68,7 +70,7 @@ services:
 
   redis:
     image: redis:7-alpine
-    container_name: honeypot-redis
+    container_name: cipher-redis
     ports:
       - "6379:6379"
     volumes:
@@ -90,11 +92,11 @@ services:
           cpus: '0.1'
           memory: 32M
     networks:
-      - honeypot-net
+      - cipher-net
     command: redis-server --appendonly yes --maxmemory 100mb --maxmemory-policy allkeys-lru
 
 networks:
-  honeypot-net:
+  cipher-net:
     driver: bridge
 
 volumes:

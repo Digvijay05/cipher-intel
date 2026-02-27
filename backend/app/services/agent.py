@@ -207,7 +207,7 @@ class AgentController:
         return reply
 
     def _generate_agent_notes(self, session: SessionState) -> str:
-        """Generate summary notes for the GUVI callback.
+        """Generate summary notes for the final intelligence report.
 
         Creates a human-readable summary of the scam engagement based on
         extracted intelligence and detection results.

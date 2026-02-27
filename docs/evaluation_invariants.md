@@ -1,12 +1,12 @@
-# Evaluation Invariants
+# System Invariants
 
 ## Goal
 Eliminate ambiguity before writing code.
 
 ## Core Locks
-* **Problem Statement**: **Problem Statement 2 (Agentic Honey-Pot)** is locked.
-* **Final Callback**: This is a **HARD INVARIANT**. Missing the final callback results in a **ZERO SCORE**.
+* **Architecture**: Agentic honeypot with multi-turn conversation engagement is locked.
+* **Final Callback**: The system must produce a final intelligence report via the configured callback endpoint.
 
 ## Hard Rules
-1. The system must produce a final callback to `https://hackathon.guvi.in/api/updateHoneyPotFinalResult`.
+1. The system must produce a final callback to the configured `CIPHER_CALLBACK_URL`.
 2. The callback must contain the exact extracted intelligence schema.

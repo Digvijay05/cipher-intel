@@ -3,7 +3,7 @@
 import os
 
 # Set env vars before imports
-os.environ["HONEYPOT_API_KEY"] = "test-key"
+os.environ["CIPHER_API_KEY"] = "test-key"
 os.environ["OPENAI_API_KEY"] = "test-key"
 
 import pytest

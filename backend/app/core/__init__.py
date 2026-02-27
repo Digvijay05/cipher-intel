@@ -1,7 +1,7 @@
 """Core configuration and environment management."""
 
 from app.core.config import (
-    HONEYPOT_API_KEY,
+    CIPHER_API_KEY,
     OLLAMA_API_KEY,
     OLLAMA_MODEL,
     OLLAMA_BASE_URL,
@@ -12,7 +12,7 @@ from app.core.config import (
 )
 
 __all__ = [
-    "HONEYPOT_API_KEY",
+    "CIPHER_API_KEY",
     "OLLAMA_API_KEY",
     "OLLAMA_MODEL",
     "OLLAMA_BASE_URL",

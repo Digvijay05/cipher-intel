@@ -1,8 +1,8 @@
 # ==============================================================================
-# Dockerfile for Honeypot API
+# Dockerfile for CIPHER API
 # ==============================================================================
 # Multi-stage build with non-root user and health check.
-# Production-ready for hackathon evaluation.
+# Production-ready deployment image.
 # ==============================================================================
 
 # Stage 1: Build dependencies
@@ -16,8 +16,8 @@ RUN pip install --no-cache-dir --target=/install -r requirements.txt
 FROM python:3.10-slim
 
 # Metadata
-LABEL maintainer="Honeypot Team"
-LABEL description="Agentic Honeypot API for scam detection and engagement"
+LABEL maintainer="CIPHER Team"
+LABEL description="Conversational Intelligence Platform for Honeypot Engagement & Reporting"
 LABEL version="1.0.0"
 
 # Environment settings for Python
@@ -26,7 +26,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONPATH=/usr/local/lib/python3.10/site-packages
 
 # Create non-root user for security
-RUN groupadd -r honeypot && useradd -r -g honeypot honeypot
+RUN groupadd -r cipher && useradd -r -g cipher cipher
 
 WORKDIR /app
 
@@ -37,10 +37,10 @@ COPY --from=builder /install /usr/local/lib/python3.10/site-packages/
 COPY app ./app
 
 # Set ownership to non-root user
-RUN chown -R honeypot:honeypot /app
+RUN chown -R cipher:cipher /app
 
 # Switch to non-root user
-USER honeypot
+USER cipher
 
 # Expose port
 EXPOSE 8000

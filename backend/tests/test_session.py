@@ -4,7 +4,7 @@ import os
 import pytest
 
 # Set env vars before imports
-os.environ["HONEYPOT_API_KEY"] = "test-key"
+os.environ["CIPHER_API_KEY"] = "test-key"
 os.environ["OPENAI_API_KEY"] = "test-key"
 
 from app.services.session import SessionState, get_session_store, InMemorySessionStore

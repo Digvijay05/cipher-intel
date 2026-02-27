@@ -22,9 +22,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 app = FastAPI(
-    title="Agentic Honeypot API",
+    title="CIPHER — Threat Intelligence API",
     version="1.0.0",
-    description="A backend system designed to engage scammers in automated, believable conversations.",
+    description="Conversational Intelligence Platform for Honeypot Engagement & Reporting.",
     lifespan=lifespan,
 )
 app.include_router(router)

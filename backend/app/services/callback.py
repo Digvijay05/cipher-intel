@@ -1,9 +1,7 @@
-"""Final callback client for GUVI evaluation server.
+"""Final result callback client for CIPHER intelligence reporting.
 
-Sends extracted intelligence to the evaluation endpoint.
-CRITICAL: Missing this callback = automatic disqualification.
-
-Payload must EXACTLY match GUVI schema:
+Sends extracted intelligence to the configured reporting endpoint.
+Payload follows the CIPHER intelligence schema:
 {
   "sessionId": string,
   "scamDetected": boolean,
@@ -20,14 +18,18 @@ Payload must EXACTLY match GUVI schema:
 """
 
 import logging
+import os
 from typing import Any, Dict
 
 import httpx
 
 logger = logging.getLogger(__name__)
 
-CALLBACK_URL = "https://hackathon.guvi.in/api/updateHoneyPotFinalResult"
-CALLBACK_TIMEOUT = 5.0  # seconds (per GUVI spec: timeout ≤ 5 seconds)
+CALLBACK_URL = os.getenv(
+    "CIPHER_CALLBACK_URL",
+    "https://api.yourdomain.com/v1/final-result",
+)
+CALLBACK_TIMEOUT = float(os.getenv("CIPHER_CALLBACK_TIMEOUT", "5.0"))
 
 
 async def send_callback(
@@ -37,7 +39,7 @@ async def send_callback(
     total_messages: int,
     agent_notes: str,
 ) -> bool:
-    """Send final intelligence to the GUVI evaluation server.
+    """Send final intelligence report to the configured endpoint.
 
     This callback is triggered ONLY when all three conditions are met:
     1. scamDetected = true
@@ -46,7 +48,7 @@ async def send_callback(
 
     Args:
         session_id: The session identifier.
-        intel_buffer: Extracted intelligence matching GUVI schema.
+        intel_buffer: Extracted intelligence matching CIPHER schema.
         scam_detected: Whether scam was detected in this session.
         total_messages: Total message count exchanged in session.
         agent_notes: Summary notes about the scam engagement.
@@ -63,7 +65,7 @@ async def send_callback(
         "suspiciousKeywords": intel_buffer.get("suspiciousKeywords", []) or [],
     }
 
-    # Construct payload matching GUVI schema EXACTLY
+    # Construct payload matching CIPHER intelligence schema
     payload = {
         "sessionId": session_id,
         "scamDetected": scam_detected,

@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# Start Honeypot API with Docker and expose via ngrok
+# Start CIPHER API with Docker and expose via ngrok
 # ==============================================================================
 # Prerequisites:
 # - Docker and Docker Compose installed
 # - ngrok installed and authenticated (ngrok config add-authtoken YOUR_TOKEN)
-# - .env file with HONEYPOT_API_KEY and OPENAI_API_KEY
+# - .env file with CIPHER_API_KEY and OLLAMA_API_KEY
 # ==============================================================================
 
 set -e
@@ -28,7 +28,7 @@ error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
 echo ""
 echo -e "${MAGENTA}========================================"
-echo " Honeypot API - Docker + ngrok Startup"
+echo " CIPHER API - Docker + ngrok Startup"
 echo -e "========================================${NC}"
 echo ""
 
@@ -95,14 +95,14 @@ while [ $attempt -lt $max_attempts ]; do
     attempt=$((attempt + 1))
     if [ $attempt -ge $max_attempts ]; then
         error "Backend did not become healthy within 60 seconds"
-        echo "  Check logs: docker compose logs honeypot-backend"
+        echo "  Check logs: docker compose logs cipher-api"
         exit 1
     fi
     sleep 2
 done
 
 # Get API key from .env for display
-API_KEY=$(grep "^HONEYPOT_API_KEY=" .env | cut -d'=' -f2)
+API_KEY=$(grep "^CIPHER_API_KEY=" .env | cut -d'=' -f2)
 
 # Start ngrok
 echo ""

@@ -1,7 +1,7 @@
 """Intelligence extraction from conversations.
 
 Extracts structured data (UPI IDs, phone numbers, URLs, etc.) from message text.
-Output matches the exact GUVI schema for final callback.
+Output matches the CIPHER intelligence schema for final reporting.
 """
 
 import re
@@ -39,7 +39,7 @@ SUSPICIOUS_KEYWORDS = [
 
 @dataclass
 class ExtractedIntelligence:
-    """Container for extracted intelligence matching GUVI schema."""
+    """Container for extracted intelligence matching CIPHER schema."""
 
     bankAccounts: List[str] = field(default_factory=list)
     upiIds: List[str] = field(default_factory=list)

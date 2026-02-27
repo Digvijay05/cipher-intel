@@ -1,16 +1,16 @@
 <#
 .SYNOPSIS
-    Start Honeypot API with Docker and expose via ngrok.
+    Start CIPHER API with Docker and expose via ngrok.
 
 .DESCRIPTION
     This script starts the Docker containers and creates an ngrok tunnel
-    to expose the API publicly for GUVI evaluation.
+    to expose the API publicly.
 
 .NOTES
     Prerequisites:
     - Docker Desktop running
     - ngrok installed and authenticated (ngrok config add-authtoken YOUR_TOKEN)
-    - .env file with HONEYPOT_API_KEY and OPENAI_API_KEY
+    - .env file with CIPHER_API_KEY and OLLAMA_API_KEY
 
 .EXAMPLE
     .\scripts\start-with-ngrok.ps1
@@ -32,7 +32,7 @@ function Write-Err { param($Message) Write-Host "[ERROR] $Message" -ForegroundCo
 
 Write-Host ""
 Write-Host "========================================" -ForegroundColor Magenta
-Write-Host " Honeypot API - Docker + ngrok Startup" -ForegroundColor Magenta
+Write-Host " CIPHER API - Docker + ngrok Startup" -ForegroundColor Magenta
 Write-Host "========================================" -ForegroundColor Magenta
 Write-Host ""
 
@@ -108,14 +108,14 @@ while ($attempt -lt $maxAttempts) {
     $attempt++
     if ($attempt -ge $maxAttempts) {
         Write-Err "Backend did not become healthy within 60 seconds"
-        Write-Host "  Check logs: docker compose logs honeypot-backend"
+        Write-Host "  Check logs: docker compose logs cipher-api"
         exit 1
     }
     Start-Sleep -Seconds 2
 }
 
 # Get API key from .env for display
-$apiKey = (Get-Content .env | Where-Object { $_ -match "^HONEYPOT_API_KEY=" }) -replace "HONEYPOT_API_KEY=", ""
+$apiKey = (Get-Content .env | Where-Object { $_ -match "^CIPHER_API_KEY=" }) -replace "CIPHER_API_KEY=", ""
 
 # Start ngrok
 Write-Host ""

@@ -1,11 +1,13 @@
-# Agentic Honeypot API
+# CIPHER
 
-An agentic AI system that engages scammers in automated, believable conversations, extracts intelligence (UPI IDs, phone numbers, phishing links), and reports findings via a mandatory callback to the GUVI evaluation server.
+**Conversational Intelligence Platform for Honeypot Engagement & Reporting**
+
+An agentic AI system that engages scammers in automated, believable conversations, extracts intelligence (UPI IDs, phone numbers, phishing links), and reports findings via a configurable API callback.
 
 ## Architecture
 
 ```
-AI_honeypot_API/
+cipher-intel/
 ├── backend/                        # FastAPI REST API
 │   ├── app/
 │   │   ├── main.py                 # FastAPI entrypoint + lifespan
@@ -25,7 +27,7 @@ AI_honeypot_API/
 │   │   │   ├── detection.py        # Regex-based scam detection engine
 │   │   │   ├── extraction.py       # Intelligence extraction (UPI, phone, URL)
 │   │   │   ├── session.py          # Session state + in-memory/Redis store
-│   │   │   └── callback.py         # GUVI final result callback client
+│   │   │   └── callback.py         # Final result reporting client
 │   │   ├── middleware/auth.py      # x-api-key authentication
 │   │   ├── logging/config.py       # JSON/simple logging configuration
 │   │   └── db.py                   # SQLAlchemy async engine setup
@@ -33,8 +35,7 @@ AI_honeypot_API/
 │   ├── Dockerfile                  # Multi-stage production image
 │   ├── requirements.txt            # Pinned Python dependencies
 │   └── .env.example                # Environment variable template
-├── frontend/                       # Reserved for dashboard UI
-│   └── README.md
+├── frontend/                       # Android (Kotlin) mobile app
 ├── docker-compose.yml              # Backend + Redis orchestration
 ├── .gitignore
 └── README.md
@@ -48,7 +49,7 @@ AI_honeypot_API/
 | **Agent Controller** | `services/agent.py` | Orchestrates detection → engagement → extraction → callback |
 | **Intelligence Extraction** | `services/extraction.py` | Extracts UPI IDs, phone numbers, URLs, bank accounts, keywords |
 | **Session Management** | `services/session.py` | In-memory (dev) or Redis (prod) session store |
-| **GUVI Callback** | `services/callback.py` | Sends final intelligence to `hackathon.guvi.in` |
+| **Result Callback** | `services/callback.py` | Sends final intelligence to configured reporting endpoint |
 | **LLM Agent** | `services/agent.py` | "Margaret" persona via Ollama Cloud / Groq |
 
 ## Setup
@@ -92,7 +93,7 @@ docker compose up --build
 docker compose up -d --build
 
 # View logs
-docker compose logs -f honeypot-backend
+docker compose logs -f cipher-api
 
 # Stop
 docker compose down
@@ -102,7 +103,7 @@ docker compose down
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `HONEYPOT_API_KEY` | **Yes** | — | API key for `x-api-key` header auth |
+| `CIPHER_API_KEY` | **Yes** | — | API key for `x-api-key` header auth |
 | `OLLAMA_API_KEY` | **Yes** | — | Ollama Cloud API key |
 | `OLLAMA_MODEL` | No | `gemma3:27b-cloud` | Ollama model identifier |
 | `OLLAMA_BASE_URL` | No | `https://ollama.com` | Ollama Cloud endpoint |
@@ -110,6 +111,7 @@ docker compose down
 | `GROQ_MODEL` | No | `llama-3.3-70b-versatile` | Groq model identifier |
 | `OPENAI_API_KEY` | No | `""` | OpenAI API key (legacy) |
 | `REDIS_URL` | No | — | Redis URL (set by Docker Compose) |
+| `CIPHER_CALLBACK_URL` | No | `https://api.yourdomain.com/v1/final-result` | Intelligence reporting endpoint |
 | `LOG_LEVEL` | No | `INFO` | Logging level |
 | `LOG_FORMAT` | No | `json` | `json` or `simple` |
 | `MAX_SESSION_MESSAGES` | No | `20` | Max messages before session ends |
@@ -154,14 +156,14 @@ Content-Type: application/json
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| `POST` | `/api/honeypot/message` | Yes | Main honeypot endpoint |
-| `POST` | `/` | Yes | Root endpoint (GUVI tester compat) |
+| `POST` | `/api/honeypot/message` | Yes | Main intelligence gathering endpoint |
+| `POST` | `/` | Yes | Root endpoint (backward compatibility) |
 | `GET/POST` | `/api/honeypot/test` | Yes | Reachability check |
 | `GET` | `/health` | No | Container health check |
 
-## GUVI Final Callback
+## Intelligence Reporting
 
-The system sends a mandatory callback to `https://hackathon.guvi.in/api/updateHoneyPotFinalResult` when **all three conditions** are met:
+The system sends a final intelligence report to the configured `CIPHER_CALLBACK_URL` when **all three conditions** are met:
 
 1. **`scamDetected = true`** — scam detection engine triggered
 2. **Engagement complete** — session reached `MAX_SESSION_MESSAGES`
@@ -192,4 +194,4 @@ python -m pytest tests/ -v --tb=short
 
 ## License
 
-Private — GUVI Hackathon submission.
+MIT

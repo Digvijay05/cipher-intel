@@ -1,4 +1,4 @@
-"""Routes for Honeypot API.
+"""Routes for CIPHER Threat Intelligence API.
 
 Delegates processing to AgentController for orchestration.
 """
@@ -27,14 +27,14 @@ async def health_check() -> dict:
     return {"status": "healthy"}
 
 # -----------------------------
-# Main Honeypot API (Evaluation)
+# Main CIPHER API Endpoint
 # -----------------------------
 @router.post("/api/honeypot/message", response_model=HoneypotResponse)
 async def honeypot(
     req: HoneypotRequest,
     _: str = Depends(verify_api_key),
 ) -> HoneypotResponse:
-    """Process incoming message and generate honeypot response.
+    """Process incoming message and generate CIPHER agent response.
 
     Args:
         req: The honeypot request containing message and history.
@@ -56,17 +56,16 @@ async def honeypot(
 
 
 # -----------------------------------
-# Root POST Endpoint for GUVI Tester
+# Root POST Endpoint (Compatibility)
 # -----------------------------------
 @router.post("/", response_model=HoneypotResponse)
 async def root_honeypot(
     req: HoneypotRequest,
     _: str = Depends(verify_api_key),
 ) -> HoneypotResponse:
-    """Process incoming message at root path for GUVI tester compatibility.
+    """Process incoming message at root path for backward compatibility.
 
-    The GUVI Agentic Honey-Pot API Tester posts to the root URL.
-    This endpoint mirrors /api/honeypot/message for compatibility.
+    Mirrors /api/honeypot/message for clients posting to root URL.
 
     Args:
         req: The honeypot request containing message and history.
@@ -88,14 +87,14 @@ async def root_honeypot(
 
 
 # -----------------------------------
-# GUVI Honeypot Endpoint Tester (FINAL)
+# CIPHER Reachability Test
 # -----------------------------------
 @router.api_route("/api/honeypot/test", methods=["GET", "POST"])
 async def test_endpoint(
     request: Request,
     _: str = Depends(verify_api_key),
 ) -> dict:
-    """Test endpoint to verify honeypot is reachable.
+    """Test endpoint to verify CIPHER service is reachable.
 
     Args:
         request: The incoming request.
@@ -109,5 +108,5 @@ async def test_endpoint(
     # - Just respond OK
     return {
         "status": "ok",
-        "message": "Honeypot endpoint reachable",
+        "message": "CIPHER endpoint reachable",
     }

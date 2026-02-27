@@ -21,7 +21,7 @@ def _optional_env(key: str, default: str = None) -> str:
 
 
 # Required secrets - no defaults, fail if missing
-HONEYPOT_API_KEY: str = _require_env("HONEYPOT_API_KEY")
+CIPHER_API_KEY: str = _require_env("CIPHER_API_KEY")
 
 # Ollama Cloud Configuration (Primary LLM Provider)
 OLLAMA_API_KEY: str = _require_env("OLLAMA_API_KEY")
