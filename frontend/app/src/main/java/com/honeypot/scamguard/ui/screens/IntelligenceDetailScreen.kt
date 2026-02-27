@@ -44,13 +44,7 @@ fun IntelligenceDetailScreen(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Intelligence Report",
-            style = MaterialTheme.typography.displayLarge,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
+        Spacer(modifier = Modifier.height(8.dp))
         profile?.let {
             Text(
                 text = "Subject: ${it.aliases.firstOrNull() ?: it.scammerId}",

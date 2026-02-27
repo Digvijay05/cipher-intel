@@ -55,13 +55,7 @@ fun HistoryScreen(
             .fillMaxSize()
             .padding(horizontal = 16.dp)
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Scam History",
-            style = MaterialTheme.typography.displayLarge,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Filter Chips
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

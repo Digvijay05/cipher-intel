@@ -55,14 +55,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
             .padding(horizontal = 16.dp)
             .verticalScroll(rememberScrollState())
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Settings",
-            style = MaterialTheme.typography.displayLarge,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Service Controls Section
         SectionHeader("Service Controls")

@@ -1,21 +1,31 @@
 package com.honeypot.scamguard.ui.navigation
 
+import android.app.Activity
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
@@ -31,6 +41,7 @@ import com.honeypot.scamguard.ui.screens.ScammerProfileScreen
 import com.honeypot.scamguard.ui.screens.SettingsScreen
 import com.honeypot.scamguard.ui.theme.CyberGreen
 import com.honeypot.scamguard.ui.theme.Navy800
+import com.honeypot.scamguard.ui.theme.Navy900
 import com.honeypot.scamguard.ui.theme.TextMuted
 
 private data class BottomNavItem(val screen: Screen, val icon: ImageVector)
@@ -41,24 +52,58 @@ private val bottomNavItems = listOf(
     BottomNavItem(Screen.Settings, Icons.Filled.Settings)
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NavGraph() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
+    val currentRoute = navBackStackEntry?.destination?.route
+    val activity = LocalContext.current as? Activity
 
-    // Only show bottom bar on top-level screens
-    val showBottomBar = bottomNavItems.any { item ->
-        currentDestination?.hierarchy?.any { it.route == item.screen.route } == true
+    // Determine navigation state
+    val isTopLevel = Screen.isTopLevel(currentRoute)
+    val showBottomBar = isTopLevel
+    val title = Screen.labelFor(currentRoute)
+
+    // On Dashboard, system back exits the app
+    if (currentRoute == Screen.Dashboard.route) {
+        BackHandler { activity?.finish() }
     }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                },
+                navigationIcon = {
+                    if (!isTopLevel) {
+                        IconButton(onClick = { navController.navigateUp() }) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Navy900,
+                    scrolledContainerColor = Navy800
+                )
+            )
+        },
         bottomBar = {
             if (showBottomBar) {
                 NavigationBar(containerColor = Navy800) {
                     bottomNavItems.forEach { item ->
-                        val selected = currentDestination?.hierarchy?.any { it.route == item.screen.route } == true
+                        val selected = navBackStackEntry?.destination?.hierarchy
+                            ?.any { it.route == item.screen.route } == true
                         NavigationBarItem(
                             icon = {
                                 Icon(
@@ -70,7 +115,10 @@ fun NavGraph() {
                             selected = selected,
                             onClick = {
                                 navController.navigate(item.screen.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                    // Pop to start destination to avoid deep back-stack buildup
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
                                     launchSingleTop = true
                                     restoreState = true
                                 }
@@ -91,8 +139,34 @@ fun NavGraph() {
         NavHost(
             navController = navController,
             startDestination = Screen.Dashboard.route,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.padding(innerPadding),
+            enterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Start,
+                    tween(300)
+                )
+            },
+            exitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.Start,
+                    tween(300)
+                )
+            },
+            popEnterTransition = {
+                slideIntoContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End,
+                    tween(300)
+                )
+            },
+            popExitTransition = {
+                slideOutOfContainer(
+                    AnimatedContentTransitionScope.SlideDirection.End,
+                    tween(300)
+                )
+            }
         ) {
+            // ── Top-level destinations ──
+
             composable(Screen.Dashboard.route) {
                 DashboardScreen(
                     onEventClick = { event ->
@@ -100,6 +174,7 @@ fun NavGraph() {
                     }
                 )
             }
+
             composable(Screen.History.route) {
                 HistoryScreen(
                     onProfileClick = { scammerId ->
@@ -107,9 +182,13 @@ fun NavGraph() {
                     }
                 )
             }
+
             composable(Screen.Settings.route) {
                 SettingsScreen()
             }
+
+            // ── Detail destinations ──
+
             composable(
                 route = Screen.ScammerProfile.route,
                 arguments = listOf(navArgument("scammerId") { type = NavType.StringType })
@@ -117,9 +196,12 @@ fun NavGraph() {
                 val scammerId = backStackEntry.arguments?.getString("scammerId") ?: return@composable
                 ScammerProfileScreen(
                     scammerId = scammerId,
-                    onIntelClick = { navController.navigate(Screen.IntelligenceDetail.createRoute(it)) }
+                    onIntelClick = { id ->
+                        navController.navigate(Screen.IntelligenceDetail.createRoute(id))
+                    }
                 )
             }
+
             composable(
                 route = Screen.IntelligenceDetail.route,
                 arguments = listOf(navArgument("scammerId") { type = NavType.StringType })

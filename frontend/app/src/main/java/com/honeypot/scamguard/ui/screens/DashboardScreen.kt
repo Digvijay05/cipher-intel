@@ -54,12 +54,6 @@ fun DashboardScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
-            Spacer(modifier = Modifier.height(16.dp))
-            Text(
-                text = "ScamGuard",
-                style = MaterialTheme.typography.displayLarge,
-                color = MaterialTheme.colorScheme.onBackground
-            )
             Spacer(modifier = Modifier.height(8.dp))
             StatusIndicator(status = status)
         }

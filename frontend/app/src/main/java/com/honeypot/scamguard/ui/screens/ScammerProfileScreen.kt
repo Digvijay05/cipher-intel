@@ -73,7 +73,7 @@ fun ScammerProfileScreen(
     ) {
         // Profile Header
         item {
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 // Avatar placeholder from hash
                 val initials = p.aliases.firstOrNull()?.take(2)?.uppercase() ?: "??"
