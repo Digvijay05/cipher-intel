@@ -1,6 +1,9 @@
 package com.honeypot.scamguard.ui.screens
 
+import android.content.Intent
+import android.provider.Settings
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -48,6 +51,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
     val notificationAccess by viewModel.notificationAccess.collectAsStateWithLifecycle()
     val batteryExempt by viewModel.batteryOptimizationExempt.collectAsStateWithLifecycle()
     val apiEndpoint by viewModel.apiEndpoint.collectAsStateWithLifecycle()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Column(
         modifier = Modifier
@@ -81,12 +85,20 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
         PermissionRow(
             icon = Icons.Outlined.Notifications,
             title = "Notification Access",
-            granted = notificationAccess
+            granted = notificationAccess,
+            onClick = {
+                context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
+            }
         )
         PermissionRow(
             icon = Icons.Outlined.BatteryAlert,
             title = "Battery Optimization Exempt",
-            granted = batteryExempt
+            granted = batteryExempt,
+            onClick = {
+                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                intent.data = android.net.Uri.parse("package:${context.packageName}")
+                context.startActivity(intent)
+            }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -174,12 +186,13 @@ private fun SettingsToggle(
 }
 
 @Composable
-private fun PermissionRow(icon: ImageVector, title: String, granted: Boolean) {
+private fun PermissionRow(icon: ImageVector, title: String, granted: Boolean, onClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
             .background(SurfaceCard)
+            .clickable(onClick = onClick)
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween

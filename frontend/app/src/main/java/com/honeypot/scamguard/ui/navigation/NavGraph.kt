@@ -60,6 +60,14 @@ fun NavGraph() {
     val currentRoute = navBackStackEntry?.destination?.route
     val activity = LocalContext.current as? Activity
 
+    // Check basic permissions to determine start destination dynamically
+    val context = LocalContext.current
+    val hasSmsPermission = androidx.core.content.ContextCompat.checkSelfPermission(
+        context, android.Manifest.permission.RECEIVE_SMS
+    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            
+    val startDest = if (hasSmsPermission) Screen.Dashboard.route else Screen.Onboarding.route
+
     // Determine navigation state
     val isTopLevel = Screen.isTopLevel(currentRoute)
     val showBottomBar = isTopLevel
@@ -138,7 +146,7 @@ fun NavGraph() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Dashboard.route,
+            startDestination = startDest,
             modifier = Modifier.padding(innerPadding),
             enterTransition = {
                 slideIntoContainer(
@@ -166,6 +174,16 @@ fun NavGraph() {
             }
         ) {
             // ── Top-level destinations ──
+
+            composable(Screen.Onboarding.route) {
+                com.honeypot.scamguard.ui.screens.OnboardingScreen(
+                    onComplete = {
+                        navController.navigate(Screen.Dashboard.route) {
+                            popUpTo(Screen.Onboarding.route) { inclusive = true }
+                        }
+                    }
+                )
+            }
 
             composable(Screen.Dashboard.route) {
                 DashboardScreen(
