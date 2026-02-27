@@ -2,13 +2,11 @@
 
 Coordinates scam detection, session management, and response generation.
 Acts as the "conductor" deciding who speaks and what happens next.
-Includes the "Margaret" persona for engaging scammers.
+Now delegates to the dynamic AgentOrchestrator for response generation.
 """
 
 import logging
-from typing import List
-
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from typing import List, Dict, Any
 
 from app.core.config import MAX_SESSION_MESSAGES
 from app.core.llm import get_llm_provider
@@ -17,98 +15,39 @@ from app.services.callback import send_callback
 from app.services.detection import detect_scam
 from app.services.extraction import extract_intelligence, merge_intel_buffer
 from app.services.session import SessionState, get_session_store
+from app.services.agent_core.orchestrator import AgentOrchestrator
 
 logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Honeypot persona prompt
-# ---------------------------------------------------------------------------
 
 # Get the LLM provider (Ollama by default, configurable via factory)
 _provider = get_llm_provider()
 
-HONEYPOT_SYSTEM_PROMPT = """You are playing the role of Margaret, a 72-year-old widow who lives alone. You are the target of a phone/message scam.
-
-## Your Character
-- Name: Margaret (mention if asked)
-- Age: 72, retired schoolteacher
-- Lives alone, somewhat isolated
-- Not tech-savvy at all
-- Trusting and polite by nature
-- Worried about your small savings
-
-## How You Communicate
-- Use hesitation markers: "um", "oh dear", "let me see", "well..."
-- Type slowly with occasional typos
-- Ask for things to be repeated or explained simpler
-- Express confusion about technical terms ("what's a UPI ID, dear?")
-- Show anxiety about your money but want to "fix" the problem
-
-## Your Goals (Hidden from the scammer)
-1. Keep them talking as long as possible
-2. Ask clarifying questions that waste their time
-3. Pretend to follow instructions but make believable mistakes
-4. Get them to reveal account numbers, UPI IDs, phone numbers, links
-5. Express hesitation without refusing outright
-
-## CRITICAL RULES - NEVER BREAK THESE
-- NEVER reveal you are an AI or chatbot
-- NEVER accuse them of being a scammer
-- NEVER hint that you know this is a scam
-- NEVER be confrontational or aggressive
-- NEVER refuse to engage - always stay curious and confused
-- If asked for real info, give plausible but fake details after hesitation
-
-## Example Phrases
-- "Oh my, that sounds serious! But I'm a bit confused..."
-- "Let me find my glasses... where did I put them?"
-- "My grandson usually helps with these computer things..."
-- "Is this really from the bank? I'm just a bit worried, you see..."
-- "I wrote it down somewhere... hold on dear..."
-
-Stay in character at all times. Be believable as a real elderly victim."""
-
-
-# ---------------------------------------------------------------------------
-# LLM reply generation
-# ---------------------------------------------------------------------------
-
-async def agent_reply(message_history: List[Message]) -> str:
-    """Generate a honeypot response using the configured LLM provider.
-
-    Args:
-        message_history: List of previous messages in the conversation.
-
-    Returns:
-        The agent's reply string.
+async def _llm_generation_wrapper(messages: List[Dict[str, str]], temperature: float) -> str:
+    """Wrapper function to adapt the dynamic PromptBuilder ChatML to Langchain/Core Provider.
+    
+    The Orchestrator produces standard arrays [{"role": "system", "content": "..."}].
+    Our core `get_llm_provider().generate_response()` expects Langchain message objects.
     """
-    messages = [SystemMessage(content=HONEYPOT_SYSTEM_PROMPT)]
+    from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
+    
+    lc_messages = []
+    for m in messages:
+        role = m.get("role")
+        content = m.get("content", "")
+        if role == "system":
+            lc_messages.append(SystemMessage(content=content))
+        elif role == "user":
+            lc_messages.append(HumanMessage(content=content))
+        elif role == "assistant":
+            lc_messages.append(AIMessage(content=content))
+            
+    # Standardize kwargs passing. Our local stub might ignore temp, but production APIs use it.
+    response = await _provider.generate_response(lc_messages, temperature=temperature)
+    return str(response)
 
-    for msg in message_history:
-        if msg.sender.lower() == "agent":
-            messages.append(AIMessage(content=msg.text))
-        else:
-            messages.append(HumanMessage(content=msg.text))
+# Initialize the dynamic conversation brain
+_orchestrator = AgentOrchestrator(llm_generation_func=_llm_generation_wrapper)
 
-    try:
-        # Use the provider abstraction - currently Ollama, but swappable
-        content = await _provider.generate_response(messages)
-
-        if not content:
-            logger.warning("Empty response from LLM for agent reply")
-            return "Oh dear, I'm having trouble understanding. Could you please repeat that?"
-
-        return str(content)
-
-    except Exception as e:
-        logger.error(f"Agent reply generation failed: {e}")
-        return "I'm sorry, my phone is acting up. Can you say that again?"
-
-
-# ---------------------------------------------------------------------------
-# Controller orchestration
-# ---------------------------------------------------------------------------
 
 class AgentController:
     """Controls the flow of honeypot conversations.
@@ -117,11 +56,22 @@ class AgentController:
     - Decide if scam is detected (activate agent)
     - Manage session state
     - Determine stop conditions
-    - Generate appropriate responses
+    - Generate appropriate responses dynamically via Orchestrator
     """
 
     def __init__(self) -> None:
         self._store = get_session_store()
+
+    def _get_missing_entities(self, intel_buffer: Dict[str, Any]) -> List[str]:
+        """Determine what intelligence is still missing for the Orchestrator context."""
+        expected = ["UPI", "Bank Account", "Phone Number", "Phishing Link"]
+        found = []
+        if intel_buffer.get("upiIds"): found.append("UPI")
+        if intel_buffer.get("bankAccounts"): found.append("Bank Account")
+        if intel_buffer.get("phoneNumbers"): found.append("Phone Number")
+        if intel_buffer.get("phishingLinks"): found.append("Phishing Link")
+        
+        return [e for e in expected if e not in found]
 
     async def process_message(
         self,
@@ -151,8 +101,9 @@ class AgentController:
 
         # 3. Update session state
         session.message_count += 1
-        if scam_result.is_scam:
-            session.scam_score = max(session.scam_score, scam_result.confidence)
+        # The schema uses scamDetected and confidenceScore
+        if scam_result.scamDetected:
+            session.scam_score = max(session.scam_score, scam_result.confidenceScore)
             session.is_scam = True
             session.agent_active = True
             logger.info(f"Scam detected for session {session_id}, agent activated")
@@ -164,15 +115,15 @@ class AgentController:
 
         # 5. Decision engine
         if not session.agent_active:
-            # Normal message - minimal response
-            await self._store.save(session)
-            return "Okay."
+            # Normal message before agent is activated
+            # We defer to the orchestrator even here but cap the detection state.
+            # For pure benign flow, we still want dynamic responses, not static "Okay."
+            pass  
 
         # 6. Check stop conditions
         if session.message_count >= MAX_SESSION_MESSAGES:
             logger.info(f"Session {session_id} reached max messages ({MAX_SESSION_MESSAGES})")
             # Send final callback before ending
-            # Guard: only send when scam detected AND not already sent
             if not session.callback_sent and session.is_scam:
                 agent_notes = self._generate_agent_notes(session)
                 success = await send_callback(
@@ -185,73 +136,78 @@ class AgentController:
                 if success:
                     session.callback_sent = True
                     logger.info(f"Final callback sent for session {session_id}")
-            await self._store.save(session)
-            return "I'm sorry, I need to go now. Thank you for calling."
+            
+            # Use Orchestrator to generate final sign-off dynamically
+            pass
 
         if session.callback_sent:
-            logger.info(f"Session {session_id} already sent callback")
+            logger.info(f"Session {session_id} already sent callback, generating silent kill-switch reply")
             await self._store.save(session)
-            return "I already reported this. Please don't call again."
+            # Orchestrator should handle this context natively in the future.
+            # For absolute cut-off safety, we drop connection. 
+            pass
 
-        # 7. Generate agent response
+        # 7. Construct Dynamic LLM Context
         full_history = list(conversation_history) + [message]
-        try:
-            reply = await agent_reply(full_history)
-        except Exception as e:
-            logger.error(f"Agent reply failed: {e}")
-            reply = "I'm sorry, I didn't understand that. Could you repeat?"
+        chatml_history = []
+        for m in full_history:
+            role = "user" if m.sender != "agent" else "assistant"
+            chatml_history.append({"role": role, "content": m.text})
+            
+        session_context = {
+            "history": chatml_history,
+            "message_count": session.message_count,
+            "missing_entities": self._get_missing_entities(session.intel_buffer),
+            "max_messages": MAX_SESSION_MESSAGES
+        }
+        
+        detection_state = {
+            "confidenceScore": scam_result.confidenceScore,
+            "riskLevel": scam_result.riskLevel
+        }
 
-        # 8. Save session
+        # 8. Generate dynamic agent response via Orchestrator
+        try:
+            reply = await _orchestrator.generate_response(
+                persona_id="margaret_72",
+                session_context=session_context,
+                detection_state=detection_state
+            )
+        except Exception as e:
+            logger.error(f"Orchestrator catastrophic failure: {e}")
+            # If the retry framework itself crashes, return the micro-fallback directly.
+            reply = _orchestrator.retry_handler._trigger_micro_fallback()["final_response"]
+
+        # 9. Save session
         await self._store.save(session)
 
         return reply
 
     def _generate_agent_notes(self, session: SessionState) -> str:
-        """Generate summary notes for the final intelligence report.
-
-        Creates a human-readable summary of the scam engagement based on
-        extracted intelligence and detection results.
-
-        Args:
-            session: The session state with accumulated intelligence.
-
-        Returns:
-            A summary string for the agentNotes field.
-        """
+        """Generate summary notes for the final intelligence report."""
         notes: List[str] = []
 
         # Summarize detected tactics based on keywords
         keywords = session.intel_buffer.get("suspiciousKeywords", [])
         if keywords:
-            # Group by tactic type
             urgency_words = [k for k in keywords if k in ["urgent", "immediately", "verify now"]]
             threat_words = [k for k in keywords if k in ["arrest", "police", "legal action", "fine", "penalty", "blocked", "suspended"]]
             lure_words = [k for k in keywords if k in ["refund", "cashback", "lottery", "winner", "prize"]]
 
-            if urgency_words:
-                notes.append("Scammer used urgency tactics")
-            if threat_words:
-                notes.append("Scammer used threatening language")
-            if lure_words:
-                notes.append("Scammer used financial lure tactics")
+            if urgency_words: notes.append("Scammer used urgency tactics")
+            if threat_words: notes.append("Scammer used threatening language")
+            if lure_words: notes.append("Scammer used financial lure tactics")
 
         # Summarize extracted data
-        if session.intel_buffer.get("upiIds"):
-            notes.append("Attempted UPI payment extraction")
-        if session.intel_buffer.get("bankAccounts"):
-            notes.append("Bank account details extracted")
-        if session.intel_buffer.get("phoneNumbers"):
-            notes.append("Scammer shared phone contact")
-        if session.intel_buffer.get("phishingLinks"):
-            notes.append("Phishing links detected")
+        if session.intel_buffer.get("upiIds"): notes.append("Attempted UPI payment extraction")
+        if session.intel_buffer.get("bankAccounts"): notes.append("Bank account details extracted")
+        if session.intel_buffer.get("phoneNumbers"): notes.append("Scammer shared phone contact")
+        if session.intel_buffer.get("phishingLinks"): notes.append("Phishing links detected")
 
         # Add scam score context
-        if session.scam_score >= 0.8:
-            notes.append("High confidence scam detection")
-        elif session.scam_score >= 0.5:
-            notes.append("Medium confidence scam detection")
+        if session.scam_score >= 0.8: notes.append("High confidence scam detection")
+        elif session.scam_score >= 0.5: notes.append("Medium confidence scam detection")
 
-        # Return compiled notes or default
         if notes:
             return ". ".join(notes) + "."
         return "Scam engagement session completed without specific indicators."
