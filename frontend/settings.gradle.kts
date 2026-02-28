@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ScamGuard"
+rootProject.name = "CIPHER"
 include(":app")
