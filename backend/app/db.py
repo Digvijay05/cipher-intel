@@ -1,11 +1,9 @@
 """Database connection management.
 
-Per TODO.md Phase 2:
-- Choose SQLite (dev) / Postgres (prod).
-- Create db.py for connection management.
+Provides async and sync SQLAlchemy engines, session factories,
+and database initialization functions.
 """
 
-import os
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -13,19 +11,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-# Database URL - SQLite for dev, can be overridden for Postgres in prod
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./honeypot.db")
-SYNC_DATABASE_URL = DATABASE_URL.replace("+aiosqlite", "").replace("sqlite:", "sqlite:")
+from app.config.settings import settings
 
 # Async engine for runtime
-async_engine = create_async_engine(DATABASE_URL, echo=False)
+async_engine = create_async_engine(settings.DATABASE_URL, echo=False)
 AsyncSessionLocal = async_sessionmaker(async_engine, class_=AsyncSession, expire_on_commit=False)
 
 # Sync engine for migrations/setup
-sync_engine = create_engine(
-    SYNC_DATABASE_URL.replace("+aiosqlite", ""),
-    echo=False,
-)
+_sync_url = settings.DATABASE_URL.replace("+aiosqlite", "")
+sync_engine = create_engine(_sync_url, echo=False)
 SyncSessionLocal = sessionmaker(bind=sync_engine)
 
 

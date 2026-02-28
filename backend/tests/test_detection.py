@@ -2,9 +2,10 @@
 
 import os
 
-# Set env vars before imports
-os.environ["CIPHER_API_KEY"] = "test-key"
-os.environ["OPENAI_API_KEY"] = "test-key"
+# Set env vars before imports (required for Settings validation)
+os.environ.setdefault("CIPHER_API_KEY", "test-key")
+os.environ.setdefault("OLLAMA_API_KEY", "test-key")
+os.environ.setdefault("OPENAI_API_KEY", "test-key")
 
 import pytest
 
@@ -40,8 +41,7 @@ class TestMultiLayerScamScorer:
         """Test that high-signal messages trigger scam detection."""
         text = "Your account is blocked! Verify immediately with OTP. Send money to scam@ybl"
         result = detect_scam(text)
-        
-        # New Pydantic schema validation
+
         assert getattr(result, "scamDetected") is True
         assert result.scamDetected is True
         assert result.confidenceScore >= 0.5
@@ -58,15 +58,12 @@ class TestMultiLayerScamScorer:
 
     def test_session_decay_memory(self) -> None:
         """Test that the engine tracks historical risk."""
-        text = "Hello there"  # Very benign text
-        
-        # Without history, this is harmless
+        text = "Hello there"
+
         result_clean = detect_scam(text)
         assert result_clean.scamDetected is False
-        
-        # With high previous session score, the risk carries over
+
         result_decay = detect_scam(text, previous_session_score=0.95)
-        # alpha * previous_session_score = 0.6 * 0.95 = 0.57
         assert result_decay.scamDetected is True
         assert result_decay.confidenceScore >= 0.57
         assert any("Session risk elevated" in expl for expl in result_decay.explanations)

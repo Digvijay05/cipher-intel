@@ -2,7 +2,7 @@
 
 from fastapi import Header, HTTPException
 
-from app.core.config import CIPHER_API_KEY
+from app.config.settings import settings
 
 
 def verify_api_key(x_api_key: str = Header(...)) -> str:
@@ -17,6 +17,6 @@ def verify_api_key(x_api_key: str = Header(...)) -> str:
     Raises:
         HTTPException: If API key is invalid.
     """
-    if x_api_key != CIPHER_API_KEY:
+    if x_api_key != settings.CIPHER_API_KEY:
         raise HTTPException(status_code=401, detail="Invalid API Key")
     return x_api_key
