@@ -44,6 +44,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN groupadd -r cipher && useradd -r -g cipher -d /app -s /sbin/nologin cipher
 
 WORKDIR /app
+RUN chown cipher:cipher /app
 
 COPY --from=builder /opt/venv /opt/venv
 
