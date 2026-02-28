@@ -3,9 +3,10 @@
 import os
 import pytest
 
-# Set env vars before imports
-os.environ["CIPHER_API_KEY"] = "test-key"
-os.environ["OPENAI_API_KEY"] = "test-key"
+# Set env vars before imports (required for Settings validation)
+os.environ.setdefault("CIPHER_API_KEY", "test-key")
+os.environ.setdefault("OLLAMA_API_KEY", "test-key")
+os.environ.setdefault("OPENAI_API_KEY", "test-key")
 
 from app.services.session import SessionState, get_session_store, InMemorySessionStore
 
@@ -21,7 +22,6 @@ class TestSessionState:
         assert state.scam_score == 0.0
         assert state.is_scam is False
         assert state.agent_active is False
-        assert state.callback_sent is False
         assert "bankAccounts" in state.intel_buffer
         assert "upiIds" in state.intel_buffer
 
@@ -88,12 +88,8 @@ class TestGetSessionStore:
 
     def test_returns_in_memory_by_default(self) -> None:
         """Test that in-memory store is returned when no REDIS_URL."""
-        # Clear any cached store
         import app.services.session as session_module
         session_module._session_store = None
-
-        # Ensure REDIS_URL is not set
-        os.environ.pop("REDIS_URL", None)
 
         store = get_session_store()
         assert isinstance(store, InMemorySessionStore)

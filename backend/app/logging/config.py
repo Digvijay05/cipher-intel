@@ -1,12 +1,13 @@
-"""Logging configuration for Honeypot API.
+"""Logging configuration for CIPHER API.
 
 Provides structured JSON logging for production observability.
 """
 
 import logging
-import os
 import sys
 from logging import Formatter, StreamHandler
+
+from app.config.settings import settings
 
 
 class JSONFormatter(Formatter):
@@ -37,9 +38,10 @@ def setup_logging() -> None:
     """Configure application logging.
 
     Uses JSON format for production, simple format for development.
+    All configuration sourced from centralized settings.
     """
-    log_level = os.getenv("LOG_LEVEL", "INFO").upper()
-    use_json = os.getenv("LOG_FORMAT", "json").lower() == "json"
+    log_level = settings.LOG_LEVEL.upper()
+    use_json = settings.LOG_FORMAT.lower() == "json"
 
     # Get root logger
     root_logger = logging.getLogger()

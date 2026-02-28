@@ -12,6 +12,8 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
+from app.config.settings import settings
+
 logger = logging.getLogger(__name__)
 
 
@@ -29,7 +31,6 @@ class SessionState(BaseModel):
         is_scam: Whether scam has been detected.
         agent_active: Whether the honeypot agent is engaged.
         intel_buffer: Extracted intelligence data.
-        callback_sent: Whether the final callback has been sent.
         created_at: Timestamp when session was created.
         updated_at: Timestamp when session was last updated.
     """
@@ -46,7 +47,6 @@ class SessionState(BaseModel):
         "phoneNumbers": [],
         "suspiciousKeywords": [],
     })
-    callback_sent: bool = False
     created_at: float = Field(default_factory=time.time)
     updated_at: float = Field(default_factory=time.time)
 
@@ -118,18 +118,17 @@ class InMemorySessionStore(SessionStore):
 class RedisSessionStore(SessionStore):
     """Redis-backed session store for production."""
 
-    def __init__(self, redis_url: str, prefix: str = "honeypot:session:") -> None:
+    def __init__(self, redis_url: str) -> None:
         """Initialize Redis connection.
 
         Args:
             redis_url: Redis connection URL.
-            prefix: Key prefix for session keys.
         """
         import redis.asyncio as redis
 
         self._client = redis.from_url(redis_url, decode_responses=True)
-        self._prefix = prefix
-        self._ttl = 3600  # 1 hour TTL for sessions
+        self._prefix = settings.REDIS_KEY_PREFIX
+        self._ttl = settings.REDIS_SESSION_TTL_SECONDS
 
     def _key(self, session_id: str) -> str:
         """Generate Redis key for session."""
@@ -192,9 +191,7 @@ def get_session_store() -> SessionStore:
     """
     global _session_store
     if _session_store is None:
-        import os
-
-        redis_url = os.getenv("REDIS_URL")
+        redis_url = settings.REDIS_URL
         if redis_url:
             logger.info("Using Redis session store")
             _session_store = RedisSessionStore(redis_url)

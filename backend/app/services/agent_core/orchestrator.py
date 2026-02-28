@@ -1,9 +1,9 @@
-"""Main Orchestrator tying together prompts, memory, llm calls, and reflection."""
-
 import logging
 import json
 import asyncio
 from typing import Dict, Any, List
+
+from app.config.settings import settings
 
 from .persona.engine import PersonaEngine
 from .prompts.builder import PromptBuilder
@@ -27,7 +27,7 @@ class AgentOrchestrator:
         self.prompt_builder = PromptBuilder()
         self.memory_summarizer = MemorySummarizer()
         self.evaluator = ReflectionEvaluator()
-        self.retry_handler = RetryHandler(max_retries=3)
+        self.retry_handler = RetryHandler(max_retries=settings.AGENT_MAX_RETRIES)
         self.llm_func = llm_generation_func
 
     async def generate_response(
@@ -36,16 +36,7 @@ class AgentOrchestrator:
         session_context: Dict[str, Any], 
         detection_state: Dict[str, Any]
     ) -> str:
-        """Fully orchestrates prompt building, LLM execution, reflection, and retries.
-        
-        Args:
-            persona_id: ID of the persona YAML to load (e.g. "margaret_72").
-            session_context: Must contain "history" (ChatML format), "message_count", "missing_entities".
-            detection_state: Must contain "confidenceScore", "riskLevel".
-            
-        Returns:
-            The final conversational string (static replies are explicitly forbidden by the evaluator).
-        """
+        """Fully orchestrates prompt building, LLM execution, reflection, and retries."""
         # 1. Load the specific persona traits
         persona_block = self.persona_engine.build_system_prompt_segment(persona_id)
         
@@ -63,10 +54,9 @@ class AgentOrchestrator:
         # 4. Prepare the strictly typed completion function for the retry handler
         async def generation_attempt(temperature: float):
             try:
-                # We enforce a timeout here to prevent runaway API lockups
                 raw_response = await asyncio.wait_for(
                     self.llm_func(messages=messages, temperature=temperature), 
-                    timeout=8.0
+                    timeout=settings.LLM_GENERATION_TIMEOUT_SECONDS
                 )
                 
                 # Strip out potential markdown code blocks 

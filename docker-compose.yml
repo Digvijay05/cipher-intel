@@ -1,16 +1,4 @@
-# ==============================================================================
-# Docker Compose for CIPHER API
-# ==============================================================================
-# Services:
-# - cipher-api: FastAPI application
-# - redis: Session storage
-#
-# Usage:
-#   docker compose up --build     # Build and start
-#   docker compose up -d          # Start in background
-#   docker compose logs -f        # View logs
-#   docker compose down           # Stop and remove
-# ==============================================================================
+version: '3.9'
 
 services:
   cipher-api:
@@ -20,29 +8,12 @@ services:
     container_name: cipher-api
     ports:
       - "8000:8000"
-    environment:
-      # Required secrets (from .env file)
-      - CIPHER_API_KEY=${CIPHER_API_KEY}
-      # Ollama Cloud Configuration (Primary LLM Provider)
-      - OLLAMA_API_KEY=${OLLAMA_API_KEY}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-gemma3:27b-cloud}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-https://ollama.com}
-      # Groq Configuration (Optional - for fallback)
-      - GROQ_API_KEY=${GROQ_API_KEY:-}
-      - GROQ_MODEL=${GROQ_MODEL:-llama-3.3-70b-versatile}
-      # OpenAI Configuration (Optional - for fallback)
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
-      # Redis connection (internal Docker network)
-      - REDIS_URL=redis://redis:6379/0
-      # Logging
-      - LOG_LEVEL=${LOG_LEVEL:-INFO}
-      - LOG_FORMAT=${LOG_FORMAT:-json}
-      # Session config
-      - MAX_SESSION_MESSAGES=${MAX_SESSION_MESSAGES:-20}
-      # CIPHER callback config
-      - CIPHER_CALLBACK_URL=${CIPHER_CALLBACK_URL:-https://api.yourdomain.com/v1/final-result}
+    env_file:
+      - .env
     depends_on:
       redis:
+        condition: service_healthy
+      postgres:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -51,7 +22,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 15s
-    # Resource limits (prevent runaway containers)
     deploy:
       resources:
         limits:
@@ -82,7 +52,6 @@ services:
       timeout: 5s
       retries: 5
       start_period: 5s
-    # Redis resource limits
     deploy:
       resources:
         limits:
@@ -95,9 +64,37 @@ services:
       - cipher-net
     command: redis-server --appendonly yes --maxmemory 100mb --maxmemory-policy allkeys-lru
 
+  postgres:
+    image: postgres:15-alpine
+    container_name: cipher-postgres
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    networks:
+      - cipher-net
+
 networks:
   cipher-net:
     driver: bridge
 
 volumes:
   redis_data:
+  postgres_data:
