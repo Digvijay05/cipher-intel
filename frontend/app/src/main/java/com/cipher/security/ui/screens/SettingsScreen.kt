@@ -42,16 +42,36 @@ import com.cipher.security.ui.theme.CyberGreen
 import com.cipher.security.ui.theme.Navy700
 import com.cipher.security.ui.theme.SurfaceCard
 import com.cipher.security.ui.theme.TextMuted
+import com.cipher.security.ui.theme.WarningAmber
 import com.cipher.security.ui.viewmodel.SettingsViewModel
 
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
+fun SettingsScreen(
+    viewModel: SettingsViewModel = viewModel(
+        factory = androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.getInstance(
+            androidx.compose.ui.platform.LocalContext.current.applicationContext as android.app.Application
+        )
+    )
+) {
     val serviceEnabled by viewModel.serviceEnabled.collectAsStateWithLifecycle()
     val activeInterception by viewModel.activeInterception.collectAsStateWithLifecycle()
     val notificationAccess by viewModel.notificationAccess.collectAsStateWithLifecycle()
     val batteryExempt by viewModel.batteryOptimizationExempt.collectAsStateWithLifecycle()
     val apiEndpoint by viewModel.apiEndpoint.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                viewModel.refreshPermissions()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -95,11 +115,29 @@ fun SettingsScreen(viewModel: SettingsViewModel = viewModel()) {
             title = "Battery Optimization Exempt",
             granted = batteryExempt,
             onClick = {
-                val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                intent.data = android.net.Uri.parse("package:${context.packageName}")
-                context.startActivity(intent)
+                try {
+                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                    intent.data = android.net.Uri.parse("package:${context.packageName}")
+                    context.startActivity(intent)
+                } catch (e: Exception) {
+                    val fallback = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                    context.startActivity(fallback)
+                }
             }
         )
+        
+        if (viewModel.isXiaomiDevice && !batteryExempt) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.padding(horizontal = 16.dp)) {
+                Icon(Icons.Outlined.Api, contentDescription = "OEM Warning", tint = WarningAmber, modifier = Modifier.size(16.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "MIUI Detected: Auto-start permission may also be required for 24/7 background interception. Check your device's security app.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = WarningAmber
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
