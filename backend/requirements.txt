@@ -14,3 +14,5 @@ redis==5.1.1
 langchain-openai==0.2.1
 langchain-groq==0.2.0
 langchain-core==0.3.6
+locust==2.32.2
+pytest-mock==3.14.0
