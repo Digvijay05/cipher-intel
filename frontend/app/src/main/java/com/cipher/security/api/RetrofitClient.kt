@@ -13,13 +13,14 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
 
+import com.cipher.security.BuildConfig
+
 /**
  * Retrofit client with production-grade circuit breaker (CLOSED -> OPEN -> HALF_OPEN -> CLOSED)
  * and retry interceptor. Interceptor ordering: circuit breaker first, then retry.
  */
 object RetrofitClient {
     private const val TAG = "RetrofitClient"
-    private const val BASE_URL = "http://10.0.2.2:8000"
 
     // Circuit breaker configuration
     private const val CB_FAILURE_THRESHOLD = 5
@@ -162,18 +163,33 @@ object RetrofitClient {
     // OkHttp Client: retry -> circuit breaker -> logging
     // Ordering matters: retry wraps circuit breaker so each retry is one CB count.
     // -------------------------------------------------------------------------
+    private val certificatePinner = okhttp3.CertificatePinner.Builder()
+        .add("ai-honeypot-api-kkl5.onrender.com", "sha256/AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=") // Replace with actual pin if needed
+        .build()
+
     private val okHttpClient = OkHttpClient.Builder()
+        .apply {
+            if (!BuildConfig.DEBUG) {
+                certificatePinner(certificatePinner)
+            }
+        }
+        .addInterceptor { chain ->
+            val original = chain.request()
+            val requestBuilder = original.newBuilder()
+                .header("x-api-key", BuildConfig.API_KEY)
+            chain.proceed(requestBuilder.build())
+        }
         .addInterceptor(retryInterceptor)
         .addInterceptor(circuitBreakerInterceptor)
         .addInterceptor(loggingInterceptor)
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .writeTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
         .build()
 
     val instance: CipherApiService by lazy {
         val retrofit = Retrofit.Builder()
-            .baseUrl(BASE_URL)
+            .baseUrl(BuildConfig.BASE_URL)
             .client(okHttpClient)
             .addConverterFactory(GsonConverterFactory.create())
             .build()

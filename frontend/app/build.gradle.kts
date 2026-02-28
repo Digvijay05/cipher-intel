@@ -13,8 +13,8 @@ android {
         applicationId = "com.cipher.security"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -22,14 +22,45 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "keystore.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "dummy"
+            keyAlias = System.getenv("KEY_ALIAS") ?: "dummy"
+            keyPassword = System.getenv("KEY_PASSWORD") ?: "dummy"
+        }
+    }
+
+    buildFeatures {
+        buildConfig = true
+        compose = true
+    }
+
     buildTypes {
-        release {
+        getByName("debug") {
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/\"")
+            buildConfigField("String", "API_KEY", "\"dev_key\"")
+            isMinifyEnabled = false
+            isDebuggable = true
+        }
+        create("staging") {
+            initWith(getByName("debug"))
+            applicationIdSuffix = ".staging"
+            versionNameSuffix = "-staging"
+            buildConfigField("String", "BASE_URL", "\"${System.getenv("API_BASE_URL") ?: "http://10.0.2.2:8000/"}\"")
+            buildConfigField("String", "API_KEY", "\"${System.getenv("API_KEY") ?: "dev_key"}\"")
+            isMinifyEnabled = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            isDebuggable = false
+        }
+        getByName("release") {
+            buildConfigField("String", "BASE_URL", "\"https://ai-honeypot-api-kkl5.onrender.com/\"")
+            buildConfigField("String", "API_KEY", "\"${System.getenv("PROD_API_KEY") ?: ""}\"")
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.getByName("release")
+            isDebuggable = false
         }
     }
     compileOptions {
@@ -38,9 +69,6 @@ android {
     }
     kotlinOptions {
         jvmTarget = "17"
-    }
-    buildFeatures {
-        compose = true
     }
     packaging {
         resources {
