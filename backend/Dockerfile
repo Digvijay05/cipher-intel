@@ -22,7 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
-COPY requirements.txt .
+COPY backend/requirements.txt .
 RUN pip install --no-cache-dir pip setuptools wheel && \
     pip install --no-cache-dir -r requirements.txt
 
@@ -47,7 +47,7 @@ WORKDIR /app
 
 COPY --from=builder /opt/venv /opt/venv
 
-COPY --chown=cipher:cipher app/ ./app/
+COPY --chown=cipher:cipher backend/app/ ./app/
 
 USER cipher
 
