@@ -23,7 +23,7 @@ class SettingsViewModel(application: Application) : AndroidViewModel(application
     private val _batteryOptimizationExempt = MutableStateFlow(false)
     val batteryOptimizationExempt: StateFlow<Boolean> = _batteryOptimizationExempt
 
-    private val _apiEndpoint = MutableStateFlow("https://ai-honeypot-api-kkl5.onrender.com/")
+    private val _apiEndpoint = MutableStateFlow(com.cipher.security.BuildConfig.BASE_URL)
     val apiEndpoint: StateFlow<String> = _apiEndpoint
 
     val isXiaomiDevice = android.os.Build.MANUFACTURER.lowercase().let { 

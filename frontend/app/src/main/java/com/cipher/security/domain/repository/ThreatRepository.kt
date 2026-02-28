@@ -2,6 +2,7 @@ package com.cipher.security.domain.repository
 
 import android.content.Context
 import android.util.Log
+import com.cipher.security.BuildConfig
 import com.cipher.security.api.RetrofitClient
 import com.cipher.security.api.model.CipherRequest
 import com.cipher.security.api.model.RequestMessage
@@ -22,7 +23,6 @@ class ThreatRepository(context: Context) {
 
     companion object {
         private const val TAG = "ThreatRepository"
-        private const val API_KEY = "***REDACTED***"
     }
 
     private val dao: ThreatDao = AppDatabase.getDatabase(context).threatDao()
@@ -87,7 +87,7 @@ class ThreatRepository(context: Context) {
                     ),
                     metadata = RequestMetadata(channel = "sms")
                 )
-                val response = api.analyzeMessage(API_KEY, request)
+                val response = api.analyzeMessage(BuildConfig.API_KEY, request)
                 if (response.isSuccessful) {
                     val analysis = response.body()
                     if (analysis != null) {

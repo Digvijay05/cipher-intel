@@ -5,6 +5,7 @@ import android.telephony.SmsManager
 import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import com.cipher.security.BuildConfig
 import com.cipher.security.api.RetrofitClient
 import com.cipher.security.api.model.CipherRequest
 import com.cipher.security.api.model.RequestMessage
@@ -38,7 +39,6 @@ class EngagementWorker(
 
     companion object {
         private const val TAG = "EngagementWorker"
-        private const val API_KEY = "***REDACTED***"
         private const val MAX_CONCURRENT_SESSIONS = 5
         private const val MIN_REPLY_INTERVAL_MS = 10_000L
         private const val SESSION_EXPIRY_MS = 30 * 60 * 1000L
@@ -141,7 +141,7 @@ class EngagementWorker(
         )
 
         return@withContext try {
-            val response = RetrofitClient.instance.sendMessage(API_KEY, request)
+            val response = RetrofitClient.instance.sendMessage(BuildConfig.API_KEY, request)
 
             if (!response.isSuccessful) {
                 Log.w(TAG, "Backend returned ${response.code()}")

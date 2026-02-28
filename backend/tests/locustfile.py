@@ -7,10 +7,13 @@ Usage:
     locust -f tests/locustfile.py --host=http://localhost:8000
 """
 
+import os
 import random
 import time
 
 from locust import HttpUser, between, events, task
+
+CIPHER_API_KEY = os.environ.get("CIPHER_API_KEY", "test-key")
 
 
 class ScammerBot(HttpUser):
@@ -44,7 +47,7 @@ class ScammerBot(HttpUser):
         with self.client.post(
             "/api/honeypot/message",
             json=payload,
-            headers={"x-api-key": "***REDACTED***"},
+            headers={"x-api-key": CIPHER_API_KEY},
             catch_response=True,
         ) as response:
             if response.status_code == 200:
@@ -71,7 +74,7 @@ class ScammerBot(HttpUser):
         payload = {"message": None, "malicious_sql": "DROP TABLE sessions"}
         self.client.post(
             "/api/honeypot/message",
-            headers={"x-api-key": "***REDACTED***"},
+            headers={"x-api-key": CIPHER_API_KEY},
             json=payload,
             expected_status=422,
         )
