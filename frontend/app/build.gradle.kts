@@ -24,10 +24,10 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(System.getenv("KEYSTORE_PATH") ?: "keystore.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD") ?: "dummy"
-            keyAlias = System.getenv("KEY_ALIAS") ?: "dummy"
-            keyPassword = System.getenv("KEY_PASSWORD") ?: "dummy"
+            storeFile = file(System.getenv("KEYSTORE_PATH")?.trim() ?: "keystore.jks")
+            storePassword = System.getenv("KEYSTORE_PASSWORD")?.trim() ?: "dummy"
+            keyAlias = System.getenv("KEY_ALIAS")?.trim() ?: "dummy"
+            keyPassword = System.getenv("KEY_PASSWORD")?.trim() ?: "dummy"
         }
     }
 
@@ -47,15 +47,15 @@ android {
             initWith(getByName("debug"))
             applicationIdSuffix = ".staging"
             versionNameSuffix = "-staging"
-            buildConfigField("String", "BASE_URL", "\"${System.getenv("API_BASE_URL") ?: "http://10.0.2.2:8000/"}\"")
-            buildConfigField("String", "API_KEY", "\"${System.getenv("API_KEY") ?: "dev_key"}\"")
+            buildConfigField("String", "BASE_URL", "\"${System.getenv("API_BASE_URL")?.trim() ?: "http://10.0.2.2:8000/"}\"")
+            buildConfigField("String", "API_KEY", "\"${System.getenv("API_KEY")?.trim() ?: "dev_key"}\"")
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             isDebuggable = false
         }
         getByName("release") {
             buildConfigField("String", "BASE_URL", "\"https://ai-honeypot-api-kkl5.onrender.com/\"")
-            buildConfigField("String", "API_KEY", "\"${System.getenv("PROD_API_KEY") ?: ""}\"")
+            buildConfigField("String", "API_KEY", "\"${System.getenv("PROD_API_KEY")?.trim() ?: ""}\"")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
