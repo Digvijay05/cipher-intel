@@ -61,6 +61,12 @@ fun SettingsScreen(
     val context = androidx.compose.ui.platform.LocalContext.current
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
 
+    val batteryLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()
+    ) {
+        viewModel.refreshPermissions()
+    }
+
     androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
@@ -115,13 +121,33 @@ fun SettingsScreen(
             title = "Battery Optimization Exempt",
             granted = batteryExempt,
             onClick = {
-                try {
-                    val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
-                    intent.data = android.net.Uri.parse("package:${context.packageName}")
-                    context.startActivity(intent)
-                } catch (e: Exception) {
-                    val fallback = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
-                    context.startActivity(fallback)
+                if (!batteryExempt) {
+                    try {
+                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                        intent.data = android.net.Uri.parse("package:${context.packageName}")
+                        batteryLauncher.launch(intent)
+                        android.widget.Toast.makeText(context, "Exemption needed for 24/7 background protection", android.widget.Toast.LENGTH_LONG).show()
+                    } catch (e: Exception) {
+                        try {
+                            val fallback = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                            batteryLauncher.launch(fallback)
+                            android.widget.Toast.makeText(context, "Please disable battery optimization for CIPHER", android.widget.Toast.LENGTH_LONG).show()
+                        } catch (ex: Exception) {
+                            val appDetails = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                            appDetails.data = android.net.Uri.parse("package:${context.packageName}")
+                            batteryLauncher.launch(appDetails)
+                        }
+                    }
+                } else {
+                    try {
+                        val intent = Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                        batteryLauncher.launch(intent)
+                        android.widget.Toast.makeText(context, "Battery optimizations are already disabled for CIPHER", android.widget.Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        val appDetails = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                        appDetails.data = android.net.Uri.parse("package:${context.packageName}")
+                        batteryLauncher.launch(appDetails)
+                    }
                 }
             }
         )
