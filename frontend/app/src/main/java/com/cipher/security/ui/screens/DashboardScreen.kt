@@ -40,7 +40,11 @@ import java.util.Locale
 
 @Composable
 fun DashboardScreen(
-    viewModel: DashboardViewModel = viewModel(),
+    viewModel: DashboardViewModel = viewModel(
+        factory = androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.getInstance(
+            androidx.compose.ui.platform.LocalContext.current.applicationContext as android.app.Application
+        )
+    ),
     onEventClick: (ScamEventUi) -> Unit = {}
 ) {
     val status by viewModel.serviceStatus.collectAsStateWithLifecycle()
