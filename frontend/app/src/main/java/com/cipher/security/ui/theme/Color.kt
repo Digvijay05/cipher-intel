@@ -3,31 +3,36 @@ package com.cipher.security.ui.theme
 import androidx.compose.ui.graphics.Color
 
 // Primary palette — deep navy security aesthetic
-val Navy900 = Color(0xFF0A0E1A)
-val Navy800 = Color(0xFF111827)
-val Navy700 = Color(0xFF1E293B)
-val Navy600 = Color(0xFF334155)
+val Navy900 = Color(0xFF04060C) // Abyss
+val Navy800 = Color(0xFF0D111A) // Surface Level 1
+val Navy700 = Color(0xFF161B26) // Surface Level 2
+val Navy600 = Color(0xFF1E293B) // Legacy, keeping for fallback mapping
 
-// Accent — neon cyber green
-val CyberGreen = Color(0xFF00E676)
-val CyberGreenDim = Color(0xFF1B5E20)
-val CyberGreenSurface = Color(0xFF0D2818)
+// Accent — neon cyber green and cyan
+val CyberGreen = Color(0xFF00E5FF) // Neon Cyan (Renaming semantic but keeping variable so we don't break existing files)
+val CyberGreenDim = Color(0xFF009AA8)
+val CyberGreenSurface = Color(0xFF00373D)
+
+val NeonCyan = Color(0xFF00E5FF)
+val TacticalIndigo = Color(0xFF536DFE)
+val AlertViolet = Color(0xFFFF1744)
+val SignalYellow = Color(0xFFFFD600)
 
 // Severity spectrum
-val ThreatRed = Color(0xFFEF4444)
-val ThreatRedDim = Color(0xFF3B1111)
-val WarningAmber = Color(0xFFFBBF24)
-val WarningAmberDim = Color(0xFF3D2E06)
-val SafeGreen = Color(0xFF22C55E)
-val InfoBlue = Color(0xFF3B82F6)
-val InfoBlueDim = Color(0xFF0C1C3A)
+val ThreatRed = Color(0xFFFF1744) // Alert Violet
+val ThreatRedDim = Color(0xFF5C0718)
+val WarningAmber = Color(0xFFFFD600) // Signal Yellow
+val WarningAmberDim = Color(0xFF5E4F00)
+val SafeGreen = Color(0xFF00E676)
+val InfoBlue = Color(0xFF536DFE) // Tactical Indigo
+val InfoBlueDim = Color(0xFF1B2357)
 
 // Text
-val TextPrimary = Color(0xFFF1F5F9)
-val TextSecondary = Color(0xFF94A3B8)
+val TextPrimary = Color(0xFFF8F9FA)
+val TextSecondary = Color(0xFF8B95A5)
 val TextMuted = Color(0xFF64748B)
 
 // Surface
-val SurfaceCard = Color(0xFF1E293B)
-val SurfaceBorder = Color(0xFF334155)
-val SurfaceElevated = Color(0xFF253344)
+val SurfaceCard = Color(0xFF0D111A)
+val SurfaceBorder = Color(0xFF161B26)
+val SurfaceElevated = Color(0xFF161B26)

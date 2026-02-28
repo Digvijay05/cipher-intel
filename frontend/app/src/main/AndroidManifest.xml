@@ -17,6 +17,8 @@
         android:allowBackup="false"
         android:usesCleartextTraffic="true"
         android:label="CIPHER"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.Cipher"
         tools:targetApi="34">
