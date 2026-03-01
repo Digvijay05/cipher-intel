@@ -1,5 +1,8 @@
 package com.cipher.security.worker
 
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
+
 import android.content.Context
 import android.telephony.SmsManager
 import android.util.Log
@@ -56,7 +59,17 @@ class EngagementWorker(
         Log.d(TAG, "Processing engagement for sender=$sender")
 
         // Kill switch: check if engagement is enabled
-        val prefs = applicationContext.getSharedPreferences("cipher_prefs", Context.MODE_PRIVATE)
+        // Kill switch: check if engagement is enabled via EncryptedSharedPreferences
+        val masterKey = MasterKey.Builder(applicationContext, MasterKey.DEFAULT_MASTER_KEY_ALIAS)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        val prefs = EncryptedSharedPreferences.create(
+            applicationContext,
+            "cipher_prefs",
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
         if (!prefs.getBoolean("engagement_enabled", true)) {
             Log.d(TAG, "Engagement disabled via kill switch")
             return@withContext Result.success()

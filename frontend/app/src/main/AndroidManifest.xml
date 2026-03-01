@@ -15,7 +15,8 @@
     <application
         android:name=".CipherApplication"
         android:allowBackup="false"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:label="CIPHER"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"

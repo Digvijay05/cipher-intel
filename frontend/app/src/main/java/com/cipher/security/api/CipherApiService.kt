@@ -9,13 +9,13 @@ import retrofit2.http.Header
 import retrofit2.http.POST
 
 interface CipherApiService {
-    @POST("/api/honeypot/message")
+    @POST("/api/v1/engage")
     suspend fun sendMessage(
         @Header("x-api-key") apiKey: String,
         @Body request: CipherRequest
     ): Response<CipherResponse>
 
-    @POST("/api/honeypot/analyze")
+    @POST("/api/v1/analyze")
     suspend fun analyzeMessage(
         @Header("x-api-key") apiKey: String,
         @Body request: CipherRequest

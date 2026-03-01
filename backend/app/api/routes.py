@@ -24,6 +24,36 @@ async def health_check() -> dict:
     """
     return {"status": "healthy"}
 
+from pydantic import BaseModel
+
+class ThreatAnalysisResponse(BaseModel):
+    confidence_score: float
+    risk_level: str
+    scam_detected: bool
+
+@router.post("/api/v1/analyze", response_model=ThreatAnalysisResponse)
+async def analyze_message(
+    req: CipherRequest,
+    _: str = Depends(verify_api_key),
+) -> ThreatAnalysisResponse:
+    """Stateless scam detection for client-side risk assessment."""
+    from app.services.detection.engine import get_analyzer
+    analyzer = get_analyzer()
+    score, is_scam = await analyzer.analyze(req.message.text)
+    
+    if score >= 0.7:
+        risk = "high"
+    elif score >= 0.5:
+        risk = "medium"
+    else:
+        risk = "low"
+        
+    return ThreatAnalysisResponse(
+        confidence_score=score,
+        risk_level=risk,
+        scam_detected=is_scam
+    )
+
 
 @router.post("/api/v1/engage", response_model=EngageResponse)
 async def engage_cipher(
