@@ -18,7 +18,7 @@ class TestSessionState:
         """Test SessionState has correct defaults."""
         state = SessionState(session_id="test-123")
         assert state.session_id == "test-123"
-        assert state.message_count == 0
+        assert state.turn_number == 0
         assert state.scam_score == 0.0
         assert state.is_scam is False
         assert state.agent_active is False
@@ -35,12 +35,16 @@ class TestSessionState:
         assert state.updated_at > old_updated
 
     def test_serialization(self) -> None:
-        """Test SessionState can be serialized and deserialized."""
-        state = SessionState(session_id="test-123", message_count=5)
+        """Test converting state to dict for storage."""
+        state = SessionState(session_id="test-123", turn_number=8)
+        data = state.model_dump()
+        assert data["session_id"] == "test-123"
+        assert data["turn_number"] == 8
+        # The original test also checked deserialization, so we'll keep that part
         json_str = state.model_dump_json()
         restored = SessionState.model_validate_json(json_str)
         assert restored.session_id == state.session_id
-        assert restored.message_count == state.message_count
+        assert restored.turn_number == state.turn_number
 
 
 class TestInMemorySessionStore:
@@ -54,11 +58,11 @@ class TestInMemorySessionStore:
     @pytest.mark.asyncio
     async def test_save_and_get(self, store: InMemorySessionStore) -> None:
         """Test saving and retrieving a session."""
-        state = SessionState(session_id="test-123", message_count=3)
+        state = SessionState(session_id="test-123", turn_number=3)
         await store.save(state)
         retrieved = await store.get("test-123")
         assert retrieved is not None
-        assert retrieved.message_count == 3
+        assert retrieved.turn_number == 3
 
     @pytest.mark.asyncio
     async def test_get_nonexistent(self, store: InMemorySessionStore) -> None:

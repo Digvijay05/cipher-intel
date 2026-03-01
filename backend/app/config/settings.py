@@ -30,7 +30,7 @@ class Settings(BaseSettings):
     OLLAMA_BASE_URL: str = "https://ollama.com"
 
     # ── LLM: Groq (Fallback) ──────────────────────────────────────
-    GROQ_API_KEY: str = ""
+    GROQ_API_KEY: Optional[str] = None
     GROQ_MODEL: str = "llama-3.3-70b-versatile"
 
     # ── LLM: OpenAI (Optional) ────────────────────────────────────
@@ -60,6 +60,16 @@ class Settings(BaseSettings):
     # ── Agent Orchestration ───────────────────────────────────────
     AGENT_MAX_RETRIES: int = 3
     AGENT_DEFAULT_PERSONA: str = "margaret_72"
+
+    # ── Integration & Callbacks ───────────────────────────────────
+    CIPHER_CALLBACK_URL: Optional[str] = None
+
+    # ── Feature Flags ─────────────────────────────────────────────
+    FEATURE_ENGAGEMENT_ENABLED: bool = True     # Kill switch
+    FEATURE_DETECTION_ENABLED: bool = True
+    FEATURE_INTELLIGENCE_EXPORT: bool = True
+    FEATURE_LIVE_DASHBOARD: bool = True
+    DETECTION_ML_ENABLED: bool = False
 
     model_config = {
         "env_file": str(Path(__file__).resolve().parents[3] / ".env"),

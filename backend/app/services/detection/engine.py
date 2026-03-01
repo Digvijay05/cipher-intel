@@ -21,9 +21,9 @@ class ScamDetectorEngine:
         self.l3 = SemanticContextLayer()
         
         # Ensemble weights
-        self.W1 = 0.55   # Fast Deterministic heuristics (High Priority)
-        self.W2 = 0.45   # Statistical Behavioral NLP
-        self.W3 = 0.25   # Deep Semantic Transformer (Booster / Tie-breaker)
+        self.W1 = 0.45   # Fast Deterministic heuristics (High Priority)
+        self.W2 = 0.35   # Statistical Behavioral NLP
+        self.W3 = 0.20   # Deep Semantic Transformer (Booster / Tie-breaker)
 
     def map_risk_level(self, confidence: float) -> str:
         """Map raw float confidence into standard risk tier."""

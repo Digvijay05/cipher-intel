@@ -1,9 +1,10 @@
 """Pydantic models for API request/response schemas.
 
-Defines the JSON contract for all API endpoints.
+Defines the JSON contract for all CIPHER API endpoints.
 """
 
-from typing import List, Optional
+from enum import Enum
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -24,8 +25,8 @@ class Metadata(BaseModel):
     locale: Optional[str] = Field(None, description="Locale code", examples=["en-US", "en-IN"])
 
 
-class HoneypotRequest(BaseModel):
-    """Request payload for honeypot message endpoint."""
+class CipherRequest(BaseModel):
+    """Request payload for CIPHER message endpoint."""
 
     sessionId: str = Field(
         ...,
@@ -57,13 +58,37 @@ class HoneypotRequest(BaseModel):
     }
 
 
-class HoneypotResponse(BaseModel):
-    """Response payload for honeypot message endpoint."""
+# Backward-compatible alias
+HoneypotRequest = CipherRequest
+
+
+class SessionStatus(str, Enum):
+    """Session state machine states per CDB § 4."""
+
+    IDLE = "idle"
+    DETECTING = "detecting"
+    ENGAGING = "engaging"
+    COMPLETING = "completing"
+    COMPLETED = "completed"
+    SAFE = "safe"
+
+
+class EngageStatus(str, Enum):
+    """Engagement turn response status."""
+
+    CONTINUE = "continue"
+    COMPLETED = "completed"
+    ERROR = "error"
+    DISABLED = "disabled"
+
+
+class CipherResponse(BaseModel):
+    """Response payload for CIPHER message endpoint."""
 
     status: str = Field(..., description="Response status", examples=["success", "error"])
     reply: str = Field(
         ...,
-        description="The honeypot agent's reply",
+        description="The CIPHER agent's reply",
         examples=["Oh dear, what should I do? Can you explain more slowly?"],
     )
 
@@ -77,3 +102,52 @@ class HoneypotResponse(BaseModel):
             ]
         }
     }
+
+
+# Backward-compatible alias
+HoneypotResponse = CipherResponse
+
+
+class EngageResponse(BaseModel):
+    """Response payload for /api/v1/engage per CDB § 4."""
+
+    status: EngageStatus = Field(
+        ..., description="Engagement turn status",
+    )
+    reply: Optional[str] = Field(
+        None, description="Agent reply text (null when completed/disabled)",
+    )
+    session_state: SessionStatus = Field(
+        ..., description="Current session state",
+    )
+    turn_number: int = Field(
+        ..., description="Current turn number in engagement",
+    )
+    scam_detected: bool = Field(
+        ..., description="Whether scam was detected in this session",
+    )
+    confidence_score: float = Field(
+        ..., description="Current confidence score",
+    )
+
+
+class ScammerProfileResponse(BaseModel):
+    """Response payload for /api/v1/profile/{sender}."""
+
+    sender: str
+    first_seen: Optional[str] = None
+    last_seen: Optional[str] = None
+    total_engagements: int = 0
+    total_turns: int = 0
+    risk_score: float = 0.0
+    scam_categories: List[str] = Field(default_factory=list)
+    extracted_entities: Dict[str, Any] = Field(default_factory=dict)
+    tactics_observed: List[str] = Field(default_factory=list)
+    status: str = "active"
+
+
+class ProfileListResponse(BaseModel):
+    """Response payload for /api/v1/profiles."""
+
+    profiles: List[ScammerProfileResponse]
+    total_count: int

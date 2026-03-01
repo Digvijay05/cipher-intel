@@ -1,4 +1,4 @@
-"""Locust load testing for CIPHER Honeypot API.
+"""Locust load testing for CIPHER API.
 
 Simulates hundreds of concurrent scammer bots hitting the message endpoint
 to validate circuit breaker behavior, rate limiting, and Cloud Ollama latency.
@@ -17,7 +17,7 @@ CIPHER_API_KEY = os.environ.get("CIPHER_API_KEY", "test-key")
 
 
 class ScammerBot(HttpUser):
-    """Simulates a scammer sending messages to the honeypot."""
+    """Simulates a scammer sending messages to the CIPHER agent."""
 
     wait_time = between(1, 5)
 
@@ -45,7 +45,7 @@ class ScammerBot(HttpUser):
         }
 
         with self.client.post(
-            "/api/honeypot/message",
+            "/api/v1/engage",
             json=payload,
             headers={"x-api-key": CIPHER_API_KEY},
             catch_response=True,
@@ -73,7 +73,7 @@ class ScammerBot(HttpUser):
         """Fuzzing: send garbage to ensure the server rejects gracefully."""
         payload = {"message": None, "malicious_sql": "DROP TABLE sessions"}
         self.client.post(
-            "/api/honeypot/message",
+            "/api/v1/engage",
             headers={"x-api-key": CIPHER_API_KEY},
             json=payload,
             expected_status=422,

@@ -16,15 +16,15 @@ from app.config.settings import settings
 client = TestClient(app)
 
 API_KEY = settings.CIPHER_API_KEY
-ENDPOINT = "/api/honeypot/message"
+ENDPOINT = "/api/v1/engage"
 
 
 def _build_payload(
     session_id: str = "test_session_1",
     sender: str = "scammer",
-    text: str = "Send me your crypto wallet address",
+    text: str = "Immediate action required! Pay the fine right now or face arrest. Send your bank details and password.",
 ) -> dict:
-    """Build a valid HoneypotRequest payload."""
+    """Build a valid CipherRequest payload."""
     return {
         "sessionId": session_id,
         "message": {
@@ -54,7 +54,7 @@ class TestCloudOllamaIntegration:
         data = response.json()
         assert "reply" in data, f"Response missing 'reply': {data}"
         assert "status" in data, f"Response missing 'status': {data}"
-        assert data["status"] == "success"
+        assert data["status"] == "continue", f"Expected continue, got {data['status']}. Full data {data}"
         assert len(data["reply"]) > 0, "Reply should not be empty"
 
     def test_missing_api_key_returns_422(self):

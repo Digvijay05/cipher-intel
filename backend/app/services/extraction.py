@@ -76,6 +76,11 @@ def extract_intelligence(text: str) -> ExtractedIntelligence:
         ExtractedIntelligence with all found entities.
     """
     result = ExtractedIntelligence()
+    
+    # Input sanitization to prevent regex DoS on excessively long payloads
+    if len(text) > 10000:
+        text = text[:10000]
+        
     text_lower = text.lower()
 
     # Extract UPI IDs

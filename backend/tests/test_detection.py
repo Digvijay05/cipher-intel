@@ -39,7 +39,7 @@ class TestMultiLayerScamScorer:
 
     def test_scam_detected_above_threshold(self) -> None:
         """Test that high-signal messages trigger scam detection."""
-        text = "Your account is blocked! Verify immediately with OTP. Send money to scam@ybl"
+        text = "Your account is blocked! Verify immediately with OTP. Send money to scam@ybl using https://scam.xyz/"
         result = detect_scam(text)
 
         assert getattr(result, "scamDetected") is True
@@ -47,6 +47,27 @@ class TestMultiLayerScamScorer:
         assert result.confidenceScore >= 0.5
         assert result.riskLevel in ["medium", "high", "critical"]
         assert len(result.explanations) > 0
+
+    def test_lottery_scam_detected(self) -> None:
+        """Test that lottery/prize scams are detected."""
+        text = "Congratulations! You won Rs 50,000 lottery prize. Contact urgently to claim via link: http://bit.ly/claim and pay fee."
+        result = detect_scam(text)
+        assert result.scamDetected is True
+        assert result.confidenceScore >= 0.5
+
+    def test_kyc_scam_detected(self) -> None:
+        """Test that KYC expiration scams are detected."""
+        text = "Your HDFC bank KYC has expired. Update your KYC urgently at https://scam.xyz/kyc otherwise your account will be blocked."
+        result = detect_scam(text)
+        assert result.scamDetected is True
+        assert result.confidenceScore >= 0.5
+
+    def test_job_scam_detected(self) -> None:
+        """Test that employment scams are detected."""
+        text = "Earn Rs 5000 daily income from home part time. Click this link: http://bit.ly/job to transfer urgently or face legal action."
+        result = detect_scam(text)
+        assert result.scamDetected is True
+        assert result.confidenceScore >= 0.5
 
     def test_no_scam_below_threshold(self) -> None:
         """Test that low-signal messages don't trigger scam detection."""

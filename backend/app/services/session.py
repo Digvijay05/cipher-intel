@@ -22,24 +22,28 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 class SessionState(BaseModel):
-    """State tracked for each session.
+    """State tracked for each engagement session.
 
     Attributes:
         session_id: Unique identifier for the session.
-        message_count: Number of messages processed in this session.
+        turn_number: Current turn number in engagement.
+        state: Current session state in the state machine.
         scam_score: Cumulative scam confidence score.
         is_scam: Whether scam has been detected.
-        agent_active: Whether the honeypot agent is engaged.
+        agent_active: Whether the CIPHER agent is engaged.
+        persona_id: Active persona identifier.
         intel_buffer: Extracted intelligence data.
         created_at: Timestamp when session was created.
         updated_at: Timestamp when session was last updated.
     """
 
     session_id: str
-    message_count: int = 0
+    turn_number: int = 0
+    state: str = "idle"
     scam_score: float = 0.0
     is_scam: bool = False
     agent_active: bool = False
+    persona_id: str = ""
     intel_buffer: Dict[str, Any] = Field(default_factory=lambda: {
         "bankAccounts": [],
         "upiIds": [],
@@ -53,6 +57,46 @@ class SessionState(BaseModel):
     def touch(self) -> None:
         """Update the updated_at timestamp."""
         self.updated_at = time.time()
+
+    def advance_state(
+        self,
+        scam_detected: bool,
+        max_turns: int,
+    ) -> None:
+        """Advance session through the state machine.
+
+        State transitions per CDB § 4:
+            idle → detecting (on message received)
+            detecting → engaging (scam confidence >= 0.50)
+            detecting → safe (message is clean)
+            engaging → engaging (turn++ < max)
+            engaging → completing (turn >= max or disengage)
+            completing → completed (after callback)
+
+        Args:
+            scam_detected: Whether scam was detected this turn.
+            max_turns: Maximum allowed turns.
+        """
+        if self.state == "idle":
+            self.state = "detecting"
+
+        if self.state == "detecting":
+            if scam_detected:
+                self.state = "engaging"
+                self.agent_active = True
+            else:
+                self.state = "safe"
+            return
+
+        if self.state == "engaging":
+            if self.turn_number >= max_turns:
+                self.state = "completing"
+            return
+
+        if self.state == "completing":
+            self.state = "completed"
+            self.agent_active = False
+            return
 
 
 # ---------------------------------------------------------------------------

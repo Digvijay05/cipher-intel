@@ -25,6 +25,7 @@ captures/
 # ========================
 *.jks
 *.keystore
+*.b64
 keystore.properties
 secure.properties
 play-account.json
@@ -84,3 +85,4 @@ Thumbs.db
 *.png
 *.txt
 !requirements.txt
+docs/CATALOG.md

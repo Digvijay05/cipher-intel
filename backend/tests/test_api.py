@@ -1,4 +1,4 @@
-"""Integration tests for /api/honeypot/message endpoint."""
+"""Integration tests for /api/v1/engage endpoint."""
 
 import os
 from unittest.mock import MagicMock, patch
@@ -16,8 +16,8 @@ from app.main import app
 client = TestClient(app)
 
 
-class TestHoneypotMessageEndpoint:
-    """Integration tests for POST /api/honeypot/message."""
+class TestCipherMessageEndpoint:
+    """Integration tests for POST /api/v1/engage."""
 
     @patch("app.api.routes.get_controller")
     def test_message_endpoint_returns_okay_for_non_scam(self, mock_get_controller: MagicMock) -> None:
@@ -30,7 +30,7 @@ class TestHoneypotMessageEndpoint:
         mock_get_controller.return_value = mock_controller
 
         response = client.post(
-            "/api/honeypot/message",
+            "/api/v1/engage",
             json={
                 "sessionId": "test-session-nonscam",
                 "message": {
@@ -57,7 +57,7 @@ class TestHoneypotMessageEndpoint:
         mock_get_controller.return_value = mock_controller
 
         response = client.post(
-            "/api/honeypot/message",
+            "/api/v1/engage",
             json={
                 "sessionId": "test-session-123",
                 "message": {
@@ -73,13 +73,13 @@ class TestHoneypotMessageEndpoint:
 
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "success"
+        assert data["status"] == "continue"
         assert data["reply"] == "I don't understand, how do I unblock it?"
 
     def test_auth_required(self) -> None:
         """Test that API key is required."""
         response = client.post(
-            "/api/honeypot/message",
+            "/api/v1/engage",
             json={
                 "sessionId": "test",
                 "message": {"sender": "x", "text": "y", "timestamp": 0},

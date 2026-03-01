@@ -64,6 +64,24 @@ HEURISTIC_RULES: List[HeuristicRule] = [
         weight=0.45,
         description="L1: Bank details request",
     ),
+    HeuristicRule(
+        name="lottery_scam",
+        pattern=re.compile(r"\b(lottery|winner|prize|won|congratulations.*claim|lucky\s*draw)\b", re.IGNORECASE),
+        weight=0.45,
+        description="L1: Lottery/Prize scam pattern",
+    ),
+    HeuristicRule(
+        name="job_scam",
+        pattern=re.compile(r"\b(earn.*from\s*home|daily\s*income|part\s*time.*earn)\b", re.IGNORECASE),
+        weight=0.35,
+        description="L1: Employment/Work-from-home scam pattern",
+    ),
+    HeuristicRule(
+        name="kyc_scam",
+        pattern=re.compile(r"\b(kyc.*expir|update.*kyc|verify.*kyc|pan.*link)\b", re.IGNORECASE),
+        weight=0.40,
+        description="L1: KYC verification/update urgency",
+    ),
     # Obfuscation anomalies
     HeuristicRule(
         name="obfuscated_text",

@@ -14,6 +14,8 @@ from app.services.detection import detect_scam
 from app.services.extraction import extract_intelligence, merge_intel_buffer
 from app.services.session import SessionState, get_session_store
 from app.services.agent_core.orchestrator import AgentOrchestrator
+from app.services.events import get_event_bus
+from app.services.callback import fire_final_callback
 
 logger = logging.getLogger(__name__)
 
@@ -21,11 +23,7 @@ logger = logging.getLogger(__name__)
 _provider = get_llm_provider()
 
 async def _llm_generation_wrapper(messages: List[Dict[str, str]], temperature: float) -> str:
-    """Wrapper function to adapt the dynamic PromptBuilder ChatML to LangChain Provider.
-
-    The Orchestrator produces standard arrays [{"role": "system", "content": "..."}].
-    Our core provider's generate_response() expects LangChain message objects.
-    """
+    """Wrapper function to adapt the dynamic PromptBuilder ChatML to LangChain Provider."""
     from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
     lc_messages = []
@@ -47,17 +45,11 @@ _orchestrator = AgentOrchestrator(llm_generation_func=_llm_generation_wrapper)
 
 
 class AgentController:
-    """Controls the flow of honeypot conversations.
-
-    Responsibilities:
-    - Decide if scam is detected (activate agent)
-    - Manage session state
-    - Determine stop conditions
-    - Generate appropriate responses dynamically via Orchestrator
-    """
+    """Controls the flow of honeypot conversations."""
 
     def __init__(self) -> None:
         self._store = get_session_store()
+        self._event_bus = get_event_bus()
 
     def _get_missing_entities(self, intel_buffer: Dict[str, Any]) -> List[str]:
         """Determine what intelligence is still missing for the Orchestrator context."""
@@ -76,46 +68,54 @@ class AgentController:
         message: Message,
         conversation_history: List[Message],
     ) -> str:
-        """Process an incoming message and generate a response.
+        """Process an incoming message and generate a response."""
+        
+        if not settings.FEATURE_ENGAGEMENT_ENABLED:
+            logger.info("Engagement engine disabled via feature flag.")
+            return "System currently unavailable."
 
-        Args:
-            session_id: Unique session identifier.
-            message: The incoming message.
-            conversation_history: Previous messages in the conversation.
-
-        Returns:
-            The response string to send back.
-        """
         # 1. Get or create session
         session = await self._store.get(session_id)
         if session is None:
             session = SessionState(session_id=session_id)
             logger.info(f"Created new session: {session_id}")
 
-        # 2. Run scam detection
-        scam_result = detect_scam(message.text, previous_session_score=session.scam_score)
-        logger.debug(f"Scam detection: {scam_result}")
+        if session.state in ["completed", "safe"]:
+            logger.info(f"Session {session_id} is already {session.state}")
+            return "This session has concluded."
 
-        # 3. Update session state
-        session.message_count += 1
-        if scam_result.scamDetected:
-            session.scam_score = max(session.scam_score, scam_result.confidenceScore)
-            session.is_scam = True
-            session.agent_active = True
-            logger.info(f"Scam detected for session {session_id}, agent activated")
+        # 2. Run scam detection ONLY if in initial state
+        if session.state in ["idle", "detecting"]:
+            scam_result = detect_scam(message.text, previous_session_score=session.scam_score)
+            
+            if scam_result.scamDetected:
+                session.scam_score = max(session.scam_score, scam_result.confidenceScore)
+                session.is_scam = True
 
-        # 4. Extract intelligence from message
+            # State transition
+            session.advance_state(
+                scam_detected=session.is_scam,
+                max_turns=settings.MAX_SESSION_MESSAGES
+            )
+            
+            if session.state == "engaging" and session.turn_number == 0:
+                logger.info(f"Scam detected for session {session_id}, agent activated")
+                await self._event_bus.publish("scam.detected", {
+                    "session_id": session_id,
+                    "confidence_score": session.scam_score,
+                    "sender": message.sender,
+                    "text": message.text
+                })
+
+        if session.state == "safe":
+             await self._store.save(session)
+             return "Normal message received. Evaluated as safe."
+
+        # 3. Extract intelligence from message
         intel = extract_intelligence(message.text)
         session.intel_buffer = merge_intel_buffer(session.intel_buffer, intel)
-        logger.debug(f"Intel buffer updated: {session.intel_buffer}")
 
-        # 5. Check stop conditions
-        if session.message_count >= settings.MAX_SESSION_MESSAGES:
-            logger.info(
-                f"Session {session_id} reached max messages ({settings.MAX_SESSION_MESSAGES})"
-            )
-
-        # 6. Construct Dynamic LLM Context
+        # 4. Construct Dynamic LLM Context
         full_history = list(conversation_history) + [message]
         chatml_history = []
         for m in full_history:
@@ -124,17 +124,17 @@ class AgentController:
 
         session_context = {
             "history": chatml_history,
-            "message_count": session.message_count,
+            "message_count": session.turn_number,
             "missing_entities": self._get_missing_entities(session.intel_buffer),
             "max_messages": settings.MAX_SESSION_MESSAGES,
         }
 
         detection_state = {
-            "confidenceScore": scam_result.confidenceScore,
-            "riskLevel": scam_result.riskLevel,
+            "confidenceScore": session.scam_score,
+            "riskLevel": "high" if session.scam_score > 0.8 else "medium",
         }
 
-        # 7. Generate dynamic agent response via Orchestrator
+        # 5. Generate dynamic agent response via Orchestrator
         try:
             reply = await _orchestrator.generate_response(
                 persona_id=settings.AGENT_DEFAULT_PERSONA,
@@ -145,7 +145,37 @@ class AgentController:
             logger.error(f"Orchestrator catastrophic failure: {e}")
             reply = _orchestrator.retry_handler._trigger_micro_fallback()["final_response"]
 
-        # 8. Save session
+        # 6. Update turn count and re-evaluate state
+        session.turn_number += 1
+        session.advance_state(
+            scam_detected=session.is_scam,
+            max_turns=settings.MAX_SESSION_MESSAGES
+        )
+
+        # 7. Publish Turn Event
+        await self._event_bus.publish("engagement.turn", {
+            "session_id": session_id,
+            "turn_number": session.turn_number,
+            "sender": message.sender,
+            "reply": reply,
+            "intel_buffer": session.intel_buffer
+        })
+
+        # 8. Check for completion path
+        if session.state == "completing":
+            logger.info(f"Session {session_id} completing, firing callback")
+            await self._event_bus.publish("engagement.completed", {
+                "session_id": session_id,
+                "reason": "max_turns_or_intent"
+            })
+            
+            # Fire invariant callback
+            await fire_final_callback(session)
+            
+            # Advance to final state regardless of callback outcome (for now)
+            session.state = "completed"
+
+        # 9. Save session
         await self._store.save(session)
 
         return reply
