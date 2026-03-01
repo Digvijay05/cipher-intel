@@ -1,20 +1,39 @@
 package com.cipher.security.api.model
 
+import com.google.gson.annotations.SerializedName
+
 data class CipherRequest(
+    @SerializedName("session_id")
     val sessionId: String,
-    val message: RequestMessage,
-    val conversationHistory: List<RequestMessage> = emptyList(),
-    val metadata: RequestMetadata
+    
+    @SerializedName("message")
+    val message: Message,
+    
+    @SerializedName("conversation_history")
+    val conversationHistory: List<Message> = emptyList(),
+    
+    @SerializedName("metadata")
+    val metadata: Metadata? = null
 )
 
-data class RequestMessage(
+data class Message(
+    @SerializedName("sender")
     val sender: String,
+    
+    @SerializedName("text")
     val text: String,
+    
+    @SerializedName("timestamp")
     val timestamp: Long
 )
 
-data class RequestMetadata(
-    val channel: String = "sms",
-    val language: String = "en",
-    val locale: String = "en-US"
+data class Metadata(
+    @SerializedName("channel")
+    val channel: String? = null,
+    
+    @SerializedName("language")
+    val language: String? = null,
+    
+    @SerializedName("locale")
+    val locale: String? = null
 )

@@ -14,6 +14,6 @@ interface ScamEventDao {
     @Query("SELECT * FROM scam_events ORDER BY timestamp DESC")
     fun getAllEventsFlow(): Flow<List<ScamEvent>>
 
-    @Query("SELECT * FROM scam_events WHERE scammerId = :scammerId ORDER BY timestamp DESC")
+    @Query("SELECT * FROM scam_events WHERE sender = :scammerId ORDER BY timestamp DESC")
     fun getEventsForScammer(scammerId: String): Flow<List<ScamEvent>>
 }

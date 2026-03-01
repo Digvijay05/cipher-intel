@@ -7,7 +7,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import com.cipher.security.receiver.SmsReceiver
-import com.cipher.security.database.CipherDatabase
+import com.cipher.security.data.AppDatabase
+import androidx.room.Room
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
@@ -25,7 +26,7 @@ import java.util.concurrent.TimeUnit
 class ScamSimulationEngineTest {
 
     private lateinit var mockWebServer: MockWebServer
-    private lateinit var db: CipherDatabase
+    private lateinit var db: AppDatabase
     private val context = ApplicationProvider.getApplicationContext<Context>()
 
     @Before
@@ -34,8 +35,10 @@ class ScamSimulationEngineTest {
         mockWebServer.start(8080)
         // Dependency Injection must override BASE_URL to mockWebServer.url("/").toString()
         // In a real project using Hilt/Dagger, you'd replace the Retrofit binding here
-        db = CipherDatabase.getDatabase(context) 
-        db.clearAllTables()
+        db = Room.inMemoryDatabaseBuilder(
+            context,
+            AppDatabase::class.java
+        ).allowMainThreadQueries().build()
     }
 
     @After
@@ -49,7 +52,14 @@ class ScamSimulationEngineTest {
         val scammerNumber = "+15550001234"
         val scamMessage = "URGENT: Your bank account is locked. Click here: http://phish.scam"
 
-        // 1. Enqueue Fake Backend Response (pretending the Cloud LLM generated this)
+        // 1. Enqueue Fake Feature Flag Response FIRST
+        mockWebServer.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody("""{"engagement_enabled": true, "kill_switch": false}""")
+        )
+
+        // 2. Enqueue Fake Backend Response (pretending the Cloud LLM generated this) SECOND
         mockWebServer.enqueue(
             MockResponse()
                 .setResponseCode(200)
@@ -75,17 +85,29 @@ class ScamSimulationEngineTest {
         assertTrue(request.path?.contains("/api/v1/honeypot/engage") == true)
         
         // 5. Database Verification (Assert Room stored it for the Dashboard)
-        val threats = db.threatDao().getAllThreats().first()
+        val threats = db.threatDao().getAllFlow().first()
         assertEquals("Should insert exactly one threat", 1, threats.size)
         val threat = threats[0]
-        assertEquals(scammerNumber, threat.senderId)
-        assertEquals("Oh no, which bank?", threat.lastAutoReply)
-        assertEquals("ACTIVE", threat.sessionStatus)
+        assertEquals(scammerNumber, threat.sender)
+        assertEquals(scamMessage, threat.body)
     }
 
     private fun createFakeSmsPdu(sender: String, body: String): ByteArray {
-        // Generates binary 3GPP GSM PDU array for the simulated broadcast
-        // Hardcoded byte array for simplicity in this architectural demo
-        return ByteArray(0) 
+        // A minimal valid 3GPP SMS Deliver PDU for testing.
+        // SMSC: 07 (length) 91 (type) 4140540510F1 (+14044550011)
+        // PDU Type: 04 (Deliver)
+        // Sender length: 0B (11 digits)
+        // Sender type: 91 (International)
+        // Sender: 5155001032F4 (+15550001234)
+        // Protocol ID: 00
+        // Data Encoding: 00 (7-bit)
+        // Timestamp: 99309251619580 (YYMMDDHHMMSS+TZ)
+        // User Data Length: 04
+        // User Data: F4F29C0E (Test)
+        // 
+        // This minimal valid structure prevents NullPointerException when parsing
+        // getOriginatingAddress() from the SmsMessage object in the receiver.
+        val hexPdu = "07914140540510F1040B915155001032F400009930925161958004F4F29C0E"
+        return hexPdu.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
     }
 }

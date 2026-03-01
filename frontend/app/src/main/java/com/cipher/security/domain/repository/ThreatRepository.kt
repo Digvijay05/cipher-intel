@@ -5,8 +5,6 @@ import android.util.Log
 import com.cipher.security.BuildConfig
 import com.cipher.security.api.RetrofitClient
 import com.cipher.security.api.model.CipherRequest
-import com.cipher.security.api.model.RequestMessage
-import com.cipher.security.api.model.RequestMetadata
 import com.cipher.security.data.AppDatabase
 import com.cipher.security.data.dao.ThreatDao
 import com.cipher.security.data.entity.ThreatEntity
@@ -80,14 +78,14 @@ class ThreatRepository(context: Context) {
             try {
                 val request = CipherRequest(
                     sessionId = UUID.randomUUID().toString(),
-                    message = RequestMessage(
+                    message = com.cipher.security.api.model.Message(
                         sender = sender,
                         text = body,
                         timestamp = timestamp
                     ),
-                    metadata = RequestMetadata(channel = "sms")
+                    metadata = com.cipher.security.api.model.Metadata(channel = "sms")
                 )
-                val response = api.analyzeMessage(BuildConfig.API_KEY, request)
+                val response = api.analyzeMessage(request)
                 if (response.isSuccessful) {
                     val analysis = response.body()
                     if (analysis != null) {

@@ -23,7 +23,7 @@ import com.cipher.security.data.entity.ThreatEntity
         EngagementSession::class,
         EngagementMessage::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)

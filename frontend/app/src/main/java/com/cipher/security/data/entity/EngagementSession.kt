@@ -29,7 +29,7 @@ data class EngagementSession(
     val senderNumber: String,
 
     @ColumnInfo(name = "state")
-    val state: String = EngagementState.DETECTED,
+    val state: String = EngagementState.IDLE,
 
     @ColumnInfo(name = "messageCount")
     val messageCount: Int = 0,
@@ -51,10 +51,12 @@ data class EngagementSession(
  * Engagement state constants. Kept as string constants for Room compatibility.
  */
 object EngagementState {
-    const val DETECTED = "DETECTED"
-    const val ENGAGING = "ENGAGING"
-    const val COMPLETING = "COMPLETING"
-    const val COMPLETED = "COMPLETED"
-    const val FAILED = "FAILED"
-    const val EXPIRED = "EXPIRED"
+    const val IDLE = "idle"
+    const val DETECTING = "detecting"
+    const val ENGAGING = "engaging"
+    const val COMPLETING = "completing"
+    const val COMPLETED = "completed"
+    const val SAFE = "safe"
+    const val FAILED = "failed"
+    const val EXPIRED = "expired"
 }

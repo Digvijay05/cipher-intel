@@ -8,9 +8,25 @@ from fastapi import APIRouter, Depends
 from app.services.agent import get_controller
 from app.middleware.auth import verify_api_key
 from app.models.schemas import CipherRequest, EngageResponse, SessionStatus, EngageStatus, ScammerProfileResponse, ProfileListResponse
+from pydantic import BaseModel
 import json
 
 router = APIRouter()
+
+class FeatureFlagsResponse(BaseModel):
+    engagement_enabled: bool
+    kill_switch: bool
+
+@router.get("/api/v1/feature-flags", response_model=FeatureFlagsResponse)
+async def get_feature_flags():
+    """
+    Lightweight endpoint to broadcast the system's operational state to edge devices.
+    Does not require DB access.
+    """
+    return FeatureFlagsResponse(
+        engagement_enabled=True,
+        kill_switch=False
+    )
 
 
 @router.get("/health")
@@ -37,21 +53,14 @@ async def analyze_message(
     _: str = Depends(verify_api_key),
 ) -> ThreatAnalysisResponse:
     """Stateless scam detection for client-side risk assessment."""
-    from app.services.detection.engine import get_analyzer
-    analyzer = get_analyzer()
-    score, is_scam = await analyzer.analyze(req.message.text)
+    from app.services.detection import detect_scam
     
-    if score >= 0.7:
-        risk = "high"
-    elif score >= 0.5:
-        risk = "medium"
-    else:
-        risk = "low"
-        
+    signal = detect_scam(req.message.text)
+    
     return ThreatAnalysisResponse(
-        confidence_score=score,
-        risk_level=risk,
-        scam_detected=is_scam
+        confidence_score=signal.confidenceScore,
+        risk_level=signal.riskLevel,
+        scam_detected=signal.scamDetected
     )
 
 

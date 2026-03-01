@@ -1,7 +1,5 @@
 package com.cipher.security.worker
 
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
 
 import android.content.Context
 import android.telephony.SmsManager
@@ -11,8 +9,9 @@ import androidx.work.WorkerParameters
 import com.cipher.security.BuildConfig
 import com.cipher.security.api.RetrofitClient
 import com.cipher.security.api.model.CipherRequest
-import com.cipher.security.api.model.RequestMessage
-import com.cipher.security.api.model.RequestMetadata
+import com.cipher.security.api.model.EngageStatus
+
+import com.cipher.security.config.FeatureFlagManager
 import com.cipher.security.data.AppDatabase
 import com.cipher.security.data.entity.EngagementMessage
 import com.cipher.security.data.entity.EngagementSession
@@ -58,19 +57,9 @@ class EngagementWorker(
 
         Log.d(TAG, "Processing engagement for sender=$sender")
 
-        // Kill switch: check if engagement is enabled
-        // Kill switch: check if engagement is enabled via EncryptedSharedPreferences
-        val masterKey = MasterKey.Builder(applicationContext, MasterKey.DEFAULT_MASTER_KEY_ALIAS)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        val prefs = EncryptedSharedPreferences.create(
-            applicationContext,
-            "cipher_prefs",
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
-        if (!prefs.getBoolean("engagement_enabled", true)) {
+        // Kill switch: check if engagement is enabled via FeatureFlagManager
+        val flags = FeatureFlagManager.getInstance(applicationContext)
+        if (!flags.isEngagementEnabled) {
             Log.d(TAG, "Engagement disabled via kill switch")
             return@withContext Result.success()
         }
@@ -131,7 +120,7 @@ class EngagementWorker(
         // Build conversation history from Room
         val historyMessages = dao.getMessagesForSession(currentSession.sessionId)
         val conversationHistory = historyMessages.dropLast(1).map { msg ->
-            RequestMessage(
+            com.cipher.security.api.model.Message(
                 sender = msg.sender,
                 text = msg.text,
                 timestamp = msg.timestamp
@@ -139,7 +128,7 @@ class EngagementWorker(
         }
 
         // The current message (last one in history)
-        val currentMessage = RequestMessage(
+        val currentMessage = com.cipher.security.api.model.Message(
             sender = "scammer",
             text = body,
             timestamp = incomingTimestamp
@@ -150,18 +139,38 @@ class EngagementWorker(
             sessionId = currentSession.sessionId,
             message = currentMessage,
             conversationHistory = conversationHistory,
-            metadata = RequestMetadata(channel = "sms")
+            metadata = com.cipher.security.api.model.Metadata(channel = "sms")
         )
 
         return@withContext try {
-            val response = RetrofitClient.instance.sendMessage(BuildConfig.API_KEY, request)
+            val response = RetrofitClient.instance.engage(request)
 
             if (!response.isSuccessful) {
                 Log.w(TAG, "Backend returned ${response.code()}")
                 return@withContext handleRetry("Backend error ${response.code()}")
             }
 
-            val reply = response.body()?.reply
+            val engageResponse = response.body()
+            if (engageResponse == null) {
+                Log.w(TAG, "Null response body from backend")
+                return@withContext handleRetry("Null response")
+            }
+
+            // Handle kill switch from backend
+            if (engageResponse.status == EngageStatus.DISABLED) {
+                Log.w(TAG, "Engagement disabled by backend. Applying kill switch.")
+                flags.applyKillSwitch(false)
+                return@withContext Result.success()
+            }
+
+            // Handle completed session
+            if (engageResponse.status == EngageStatus.COMPLETED) {
+                Log.d(TAG, "Session completed by backend.")
+                dao.updateState(currentSession.id, EngagementState.COMPLETED, System.currentTimeMillis())
+                return@withContext Result.success()
+            }
+
+            val reply = engageResponse.reply
             if (reply.isNullOrBlank()) {
                 Log.w(TAG, "Empty reply from backend")
                 return@withContext handleRetry("Empty reply")

@@ -38,6 +38,18 @@ class SmsProcessingWorker(
         Log.d(TAG, "Processing SMS from $sender (${body.take(40)}...)")
 
         return@withContext try {
+            // Feature flag check: Sync configs then abort if Kill Switch is engaged remotely
+            val flags = com.cipher.security.config.FeatureFlagManager.getInstance(applicationContext)
+            
+            // Ensure we have fresh flags before processing (if network fails, it falls back to cache safely)
+            flags.refreshFlags()
+
+            // "isEngagementEnabled" signifies active system. If false, Killswitch is hit.
+            if (flags.isKillSwitchActive || !flags.isEngagementEnabled) {
+                Log.w(TAG, "Backend KILL SWITCH is ACTIVE or engagement disabled. Aborting SMS processing.")
+                return@withContext Result.success()
+            }
+
             val repository = ThreatRepository(applicationContext)
             val threat = repository.processIncomingSms(sender, body, timestamp)
 

@@ -22,6 +22,17 @@ import com.cipher.security.BuildConfig
 object RetrofitClient {
     private const val TAG = "RetrofitClient"
 
+    init {
+        Log.i(TAG, "BASE_URL=${BuildConfig.BASE_URL}")
+        Log.i(TAG, "BUILD_TYPE=${BuildConfig.BUILD_TYPE}")
+        if (BuildConfig.BASE_URL.contains("10.0.2.2")) {
+            Log.w(
+                TAG,
+                "BASE_URL points to emulator alias 10.0.2.2 — will not work on physical devices"
+            )
+        }
+    }
+
     // Circuit breaker configuration
     private const val CB_FAILURE_THRESHOLD = 5
     private const val CB_OPEN_DURATION_MS = 30_000L
@@ -175,8 +186,11 @@ object RetrofitClient {
         }
         .addInterceptor { chain ->
             val original = chain.request()
+            // In a real app, you would fetch the JWT from EncryptedSharedPreferences or similar
+            val jwtToken = "dummy_jwt_token_for_now" // TODO: Fetch real JWT securely
             val requestBuilder = original.newBuilder()
                 .header("x-api-key", BuildConfig.API_KEY)
+                .header("Authorization", "Bearer $jwtToken")
             chain.proceed(requestBuilder.build())
         }
         .addInterceptor(retryInterceptor)

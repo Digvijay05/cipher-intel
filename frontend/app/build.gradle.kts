@@ -5,6 +5,30 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+import java.util.Properties
+
+fun getEnvVarOrProp(key: String, defaultVal: String = "MISSING_$key"): String {
+    // 1. Try OS environment variables first
+    val envValue = System.getenv(key)?.trim()
+    if (!envValue.isNullOrEmpty()) return envValue
+
+    // 2. Try reading from the project root .env file (two levels up: app/ -> frontend/ -> /)
+    val envFile = File(project.rootDir.parentFile, ".env")
+    if (envFile.exists()) {
+        val props = Properties()
+        envFile.inputStream().use { props.load(it) }
+        val propValue = props.getProperty(key)?.trim()
+        if (!propValue.isNullOrEmpty()) {
+            // Strip potential quotes around values in .env
+            return propValue.removePrefix("\"").removeSuffix("\"")
+                            .removePrefix("'").removeSuffix("'")
+        }
+    }
+
+    // 3. Fallback
+    return defaultVal
+}
+
 android {
     namespace = "com.cipher.security"
     compileSdk = 34
@@ -14,7 +38,7 @@ android {
         minSdk = 26
         targetSdk = 34
         versionCode = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 1
-        versionName = "1.0.0"
+        versionName = "1.1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -38,8 +62,14 @@ android {
 
     buildTypes {
         getByName("debug") {
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8000/\"")
-            buildConfigField("String", "API_KEY", "\"dev_key\"")
+            val endpoint = getEnvVarOrProp("CIPHER_BASE_URL")
+            buildConfigField("String", "BASE_URL", "\"$endpoint\"")
+            
+            val apiKey = getEnvVarOrProp("CIPHER_API_KEY")
+            buildConfigField("String", "API_KEY", "\"$apiKey\"")
+            
+            buildConfigField("boolean", "DEBUG_OVERRIDE_ENGAGEMENT", "true")
+            
             isMinifyEnabled = false
             isDebuggable = true
         }
@@ -47,15 +77,28 @@ android {
             initWith(getByName("debug"))
             applicationIdSuffix = ".staging"
             versionNameSuffix = "-staging"
-            buildConfigField("String", "BASE_URL", "\"${System.getenv("API_BASE_URL")?.trim() ?: "http://10.0.2.2:8000/"}\"")
-            buildConfigField("String", "API_KEY", "\"${System.getenv("API_KEY")?.trim() ?: "dev_key"}\"")
+            
+            val endpoint = getEnvVarOrProp("CIPHER_BASE_URL")
+            buildConfigField("String", "BASE_URL", "\"$endpoint\"")
+            
+            val apiKey = getEnvVarOrProp("CIPHER_API_KEY")
+            buildConfigField("String", "API_KEY", "\"$apiKey\"")
+            
+            buildConfigField("boolean", "DEBUG_OVERRIDE_ENGAGEMENT", "false")
+            
             isMinifyEnabled = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             isDebuggable = false
         }
         getByName("release") {
-            buildConfigField("String", "BASE_URL", "\"https://ai-honeypot-api-kkl5.onrender.com/\"")
-            buildConfigField("String", "API_KEY", "\"${System.getenv("PROD_API_KEY")?.trim() ?: ""}\"")
+            val endpoint = getEnvVarOrProp("CIPHER_BASE_URL")
+            buildConfigField("String", "BASE_URL", "\"$endpoint\"")
+            
+            val apiKey = getEnvVarOrProp("CIPHER_API_KEY")
+            buildConfigField("String", "API_KEY", "\"$apiKey\"")
+            
+            buildConfigField("boolean", "DEBUG_OVERRIDE_ENGAGEMENT", "false")
+            
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")

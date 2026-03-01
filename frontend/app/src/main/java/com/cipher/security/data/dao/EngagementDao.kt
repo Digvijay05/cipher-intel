@@ -22,7 +22,7 @@ interface EngagementDao {
 
     @Query(
         "SELECT * FROM engagements WHERE senderNumber = :number " +
-        "AND state NOT IN ('COMPLETED', 'FAILED', 'EXPIRED') LIMIT 1"
+        "AND state NOT IN ('completed', 'failed', 'expired') LIMIT 1"
     )
     suspend fun getActiveSessionByNumber(number: String): EngagementSession?
 
@@ -39,17 +39,17 @@ interface EngagementDao {
     suspend fun incrementMessageCount(id: Long, now: Long)
 
     @Query(
-        "SELECT COUNT(*) FROM engagements WHERE state = 'ENGAGING'"
+        "SELECT COUNT(*) FROM engagements WHERE state = 'engaging'"
     )
     suspend fun getActiveEngagementCount(): Int
 
     @Query(
-        "SELECT * FROM engagements WHERE state = 'ENGAGING' " +
+        "SELECT * FROM engagements WHERE state = 'engaging' " +
         "AND lastActivityAt < :cutoff"
     )
     suspend fun getExpiredSessions(cutoff: Long): List<EngagementSession>
 
-    @Query("UPDATE engagements SET state = 'EXPIRED' WHERE state = 'ENGAGING' AND lastActivityAt < :cutoff")
+    @Query("UPDATE engagements SET state = 'expired' WHERE state = 'engaging' AND lastActivityAt < :cutoff")
     suspend fun expireInactiveSessions(cutoff: Long)
 
     // --- Message operations ---
@@ -68,6 +68,6 @@ interface EngagementDao {
 
     // --- Cleanup ---
 
-    @Query("DELETE FROM engagements WHERE createdAt < :cutoff AND state IN ('COMPLETED', 'FAILED', 'EXPIRED')")
+    @Query("DELETE FROM engagements WHERE createdAt < :cutoff AND state IN ('completed', 'failed', 'expired')")
     suspend fun deleteOldSessions(cutoff: Long)
 }
