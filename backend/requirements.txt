@@ -16,3 +16,7 @@ langchain-groq==0.2.0
 langchain-core==0.3.6
 locust==2.32.2
 pytest-mock==3.14.0
+transformers==4.40.2
+torch==2.3.0
+huggingface-hub==0.23.0
+anyio>=4.0.0
