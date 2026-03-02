@@ -129,9 +129,17 @@ class AgentController:
             "max_messages": settings.MAX_SESSION_MESSAGES,
         }
 
+        risk_level = "low"
+        if session.scam_score >= 0.85:
+            risk_level = "critical"
+        elif session.scam_score >= 0.65:
+            risk_level = "high"
+        elif session.scam_score >= 0.45:
+            risk_level = "medium"
+
         detection_state = {
             "confidenceScore": session.scam_score,
-            "riskLevel": "high" if session.scam_score > 0.8 else "medium",
+            "riskLevel": risk_level,
         }
 
         # 5. Generate dynamic agent response via Orchestrator

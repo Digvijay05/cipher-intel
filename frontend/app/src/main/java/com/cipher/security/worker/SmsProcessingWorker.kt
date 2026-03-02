@@ -59,7 +59,7 @@ class SmsProcessingWorker(
             }
 
             // Trigger notification for high/critical threats
-            if (threat.riskLevel in listOf("high", "critical")) {
+            if (threat.riskLevel in listOf("medium","high", "critical")) {
                 val notificationHelper = NotificationHelper(applicationContext)
                 notificationHelper.showThreatNotification(
                     sender = sender,
@@ -71,7 +71,7 @@ class SmsProcessingWorker(
             }
 
             // Phase 7: Trigger autonomous engagement for confirmed scams
-            if (threat.scamDetected && threat.riskLevel in listOf("high", "critical")) {
+            if (threat.scamDetected && threat.riskLevel in listOf("medium","high", "critical")) {
                 enqueueEngagement(sender, body, timestamp)
             }
 

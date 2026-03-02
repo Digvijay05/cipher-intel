@@ -70,7 +70,7 @@ class ScamDetectorEngine:
             explanations.append(f"Context: Session risk elevated from semantic history ({final_confidence})")
             
         return ScamSignal(
-            scamDetected=final_confidence >= 0.50,
+            scamDetected=final_confidence >= 0.45,
             confidenceScore=final_confidence,
             riskLevel=risk,
             explanations=explanations

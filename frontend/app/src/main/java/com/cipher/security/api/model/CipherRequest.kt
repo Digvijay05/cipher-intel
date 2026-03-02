@@ -3,13 +3,13 @@ package com.cipher.security.api.model
 import com.google.gson.annotations.SerializedName
 
 data class CipherRequest(
-    @SerializedName("session_id")
+    @SerializedName("sessionId")
     val sessionId: String,
     
     @SerializedName("message")
     val message: Message,
     
-    @SerializedName("conversation_history")
+    @SerializedName("conversationHistory")
     val conversationHistory: List<Message> = emptyList(),
     
     @SerializedName("metadata")
