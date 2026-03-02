@@ -150,7 +150,7 @@ class AgentController:
                 detection_state=detection_state,
             )
         except Exception as e:
-            logger.error(f"Orchestrator catastrophic failure: {e}")
+            logger.error(f"Orchestrator catastrophic failure: {e}", exc_info=True)
             reply = _orchestrator.retry_handler._trigger_micro_fallback()["final_response"]
 
         # 6. Update turn count and re-evaluate state

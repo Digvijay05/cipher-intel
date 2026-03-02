@@ -43,15 +43,28 @@ class PersonaEngine:
         ling = p.get("linguistic", {})
         rules = p.get("engagement_rules", {})
 
+        def _flatten_list(items):
+            res = []
+            for item in items:
+                if isinstance(item, dict):
+                    for k, v in item.items():
+                        res.append(f"{k}: {v}")
+                else:
+                    res.append(str(item))
+            return res
+
+        behavioral = _flatten_list(traits.get('behavioral', []))
+        biases = _flatten_list(traits.get('cognitive_biases', []))
+
         prompt = f"""You are {demo.get('name', 'a user')}, aged {demo.get('age', 'unknown')} from {demo.get('location', 'unknown')}.
 Socioeconomic background: {demo.get('socioeconomic', 'average')}
 Technical literacy: {demo.get('technical_literacy', 'average')}
 
 # BEHAVIORAL TRAITS (CRITICAL)
-- {chr(10) + '- '.join(traits.get('behavioral', []))}
+- {chr(10) + '- '.join(behavioral)}
 
 # COGNITIVE BIASES
-- {chr(10) + '- '.join(traits.get('cognitive_biases', []))}
+- {chr(10) + '- '.join(biases)}
 
 # EMOTIONAL STATE
 - Baseline: {traits.get('emotional_modeling', {}).get('baseline', 'calm')}

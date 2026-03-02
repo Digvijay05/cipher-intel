@@ -89,7 +89,11 @@ class ScammerProfileService:
 
                 # Extract and merge entities
                 try:
-                    existing_intel = json.loads(profile.extracted_entities)
+                    ext_ent = profile.extracted_entities
+                    if ext_ent is None or ext_ent == "":
+                        existing_intel = {}
+                    else:
+                        existing_intel = json.loads(ext_ent)
                 except json.JSONDecodeError:
                     existing_intel = {}
 
