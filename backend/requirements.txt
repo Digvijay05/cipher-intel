@@ -17,3 +17,4 @@ langchain-core==0.3.6
 locust==2.32.2
 pytest-mock==3.14.0
 anyio>=4.0.0
+huggingface_hub>=0.24.0
