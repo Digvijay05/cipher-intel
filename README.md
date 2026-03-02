@@ -2,173 +2,84 @@
 
 **Conversational Intelligence Platform for Honeypot Engagement & Reporting**
 
-An agentic AI system that engages scammers in automated, believable conversations, extracts intelligence (UPI IDs, phone numbers, phishing links), and reports findings via a configurable API callback.
+An automated, decentralized agentic AI system that engages scammers in believable text conversations, extracts intelligence (UPI IDs, phone numbers, phishing links), and reports findings.
 
-## Architecture
+CIPHER runs an **Autonomous Android App** on the edge (device) to safely intercept and statically score SMS scams offline. If flagged as malicious, it passes the context to a **Scalable FastAPI Cloud Backend** where LLMs dynamically generate persona-driven interactions to waste the scammer's time while aggressively extracting threat intel.
+
+For a full structural breakdown, see [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Repository Structure
 
 ```
 cipher-intel/
-├── backend/                        # FastAPI REST API
+├── backend/                        # FastAPI REST API (Cloud Intelligence)
 │   ├── app/
-│   │   ├── main.py                 # FastAPI entrypoint + lifespan
+│   │   ├── main.py                 # FastAPI entrypoint
 │   │   ├── api/routes.py           # HTTP endpoints
-│   │   ├── core/
-│   │   │   ├── config.py           # Environment-based configuration
-│   │   │   └── llm/                # LLM provider abstraction
-│   │   │       ├── base.py         # Abstract LLMProvider interface
-│   │   │       ├── factory.py      # Provider factory (singleton)
-│   │   │       ├── ollama_provider.py
-│   │   │       └── groq_provider.py
-│   │   ├── models/
-│   │   │   ├── schemas.py          # Pydantic request/response models
-│   │   │   └── db_models.py        # SQLAlchemy ORM models
-│   │   ├── services/
-│   │   │   ├── agent.py            # AgentController + "Margaret" persona
-│   │   │   ├── detection.py        # Regex-based scam detection engine
-│   │   │   ├── extraction.py       # Intelligence extraction (UPI, phone, URL)
-│   │   │   ├── session.py          # Session state + in-memory/Redis store
-│   │   │   └── callback.py         # Final result reporting client
-│   │   ├── middleware/auth.py      # x-api-key authentication
-│   │   ├── logging/config.py       # JSON/simple logging configuration
-│   │   └── db.py                   # SQLAlchemy async engine setup
+│   │   ├── core/llm/               # LLM Provider Abstractions (Ollama/Groq/OpenAI)
+│   │   ├── models/                 # SQLAlchemy ORM & Pydantic Schemas
+│   │   └── services/               # Scam detection, entity extraction, and webhooks
 │   ├── tests/                      # pytest test suite
 │   ├── Dockerfile                  # Multi-stage production image
-│   ├── requirements.txt            # Pinned Python dependencies
-│   └── .env.example                # Environment variable template
-├── frontend/                       # Android (Kotlin) mobile app
-├── docker-compose.yml              # Backend + Redis orchestration
-├── .gitignore
-└── README.md
+│   └── docker-compose.yml          # Container orchestration (API + Redis)
+├── frontend/                       # Android App (Edge Honeypot)
+│   ├── app/src/main/java/...       # Kotlin Android codebase
+│   │   ├── receiver/               # SmsReceiver & SmsDeliveryReceiver
+│   │   ├── worker/                 # SmsProcessingWorker & EngagementWorker
+│   │   ├── detection/              # LocalValidator (Regex-based offline triage)
+│   │   └── api/                    # RetrofitClient (Circuit breakers & HTTPS)
+│   └── README.md                   # Detailed frontend compile instructions
+├── ARCHITECTURE.md                 # System C4 Diagrams
+├── CONTRIBUTING.md                 # Contribution guidelines
+├── SECURITY.md                     # Security policy
+└── README.md                       # This file
 ```
 
-## Key Components
+## Getting Started
 
-| Component | File | Purpose |
-|-----------|------|---------|
-| **Scam Detection** | `services/detection.py` | 17 regex rules with weighted scoring (threshold: 0.5) |
-| **Agent Controller** | `services/agent.py` | Orchestrates detection → engagement → extraction → callback |
-| **Intelligence Extraction** | `services/extraction.py` | Extracts UPI IDs, phone numbers, URLs, bank accounts, keywords |
-| **Session Management** | `services/session.py` | In-memory (dev) or Redis (prod) session store |
-| **Result Callback** | `services/callback.py` | Sends final intelligence to configured reporting endpoint |
-| **LLM Agent** | `services/agent.py` | "Margaret" persona via Ollama Cloud / Groq |
+CIPHER operates as a dual-layer system. You will need to spin up the cloud API and compile the Android app pointing to it.
 
-## Setup
+### 1. Cloud Backend Setup
 
-### Prerequisites
+**Prerequisites:** Docker, Docker Compose, and an LLM API key (Ollama Cloud, Groq, or OpenAI).
 
-- Python 3.10+
-- Docker & Docker Compose (for production)
-- An LLM API key (Ollama Cloud or Groq)
+1. Navigate to the `backend/` directory.
+2. Copy `.env.example` to `.env` and fill in your API keys:
+   ```bash
+   CIPHER_API_KEY=your_secure_authentication_key
+   OLLAMA_API_KEY=your_ollama_key  # or GROQ_API_KEY
+   ```
+3. Boot the environment utilizing Docker:
+   ```bash
+   docker compose up -d --build
+   ```
+The backend API is now exposed on `http://localhost:8000` (or your deployment domain).
 
-### Local Development
+### 2. Android Frontend Setup
 
-```bash
-# 1. Navigate to backend
-cd backend
+**Prerequisites:** Android Studio, JDK 17+, Android SDK 34.
 
-# 2. Create virtual environment
-python -m venv .venv
+1. In the project root, ensure your `.env` contains:
+   ```bash
+   CIPHER_API_KEY=your_secure_authentication_key
+   CIPHER_BASE_URL=https://your-backend-domain.com/  # Or ngrok URL if testing locally
+   ```
+2. Open the `frontend` folder in Android Studio.
+3. Sync Gradle. The `build.gradle.kts` will automatically inject your `.env` secrets into the `BuildConfig`.
+4. Compile and Run on a physical testing device (Dual-SIM supported).
 
-# 3. Activate (Windows PowerShell)
-.\.venv\Scripts\Activate.ps1
-
-# 4. Install dependencies
-pip install -r requirements.txt
-
-# 5. Configure environment
-cp .env.example .env
-# Edit .env with your API keys
-
-# 6. Run the server
-python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### Docker
-
-```bash
-# From project root (where docker-compose.yml is)
-docker compose up --build
-
-# Or run in background
-docker compose up -d --build
-
-# View logs
-docker compose logs -f cipher-api
-
-# Stop
-docker compose down
-```
-
-## Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `CIPHER_API_KEY` | **Yes** | — | API key for `x-api-key` header auth |
-| `OLLAMA_API_KEY` | **Yes** | — | Ollama Cloud API key |
-| `OLLAMA_MODEL` | No | `gemma3:27b-cloud` | Ollama model identifier |
-| `OLLAMA_BASE_URL` | No | `https://ollama.com` | Ollama Cloud endpoint |
-| `GROQ_API_KEY` | No | `""` | Groq API key (fallback) |
-| `GROQ_MODEL` | No | `llama-3.3-70b-versatile` | Groq model identifier |
-| `OPENAI_API_KEY` | No | `""` | OpenAI API key (legacy) |
-| `REDIS_URL` | No | — | Redis URL (set by Docker Compose) |
-| `CIPHER_CALLBACK_URL` | No | `https://api.yourdomain.com/v1/final-result` | Intelligence reporting endpoint |
-| `LOG_LEVEL` | No | `INFO` | Logging level |
-| `LOG_FORMAT` | No | `json` | `json` or `simple` |
-| `MAX_SESSION_MESSAGES` | No | `20` | Max messages before session ends |
-
-## API Usage
-
-### Request
-
-```
-POST /api/honeypot/message
-Header: x-api-key: <your-api-key>
-Content-Type: application/json
-```
-
-```json
-{
-  "sessionId": "sess-abc123-def456",
-  "message": {
-    "sender": "scammer",
-    "text": "Your bank account has been suspended. Verify immediately!",
-    "timestamp": 1770005528731
-  },
-  "conversationHistory": [],
-  "metadata": {
-    "channel": "sms",
-    "language": "en",
-    "locale": "en-US"
-  }
-}
-```
-
-### Response
-
-```json
-{
-  "status": "success",
-  "reply": "Oh my, that sounds serious! What do I need to do?"
-}
-```
-
-### Endpoints
-
-| Method | Path | Auth | Description |
-|--------|------|------|-------------|
-| `POST` | `/api/honeypot/message` | Yes | Main intelligence gathering endpoint |
-| `POST` | `/` | Yes | Root endpoint (backward compatibility) |
-| `GET/POST` | `/api/honeypot/test` | Yes | Reachability check |
-| `GET` | `/health` | No | Container health check |
+> [!WARNING]
+> Do NOT install the Android Honeypot app on your primary personal device. It intercepts all incoming SMS messages for scoring and may automatically engage with unrecognized numbers scoring high for scams. Use a dedicated burner device.
 
 ## Intelligence Reporting
 
 The system sends a final intelligence report to the configured `CIPHER_CALLBACK_URL` when **all three conditions** are met:
 
-1. **`scamDetected = true`** — scam detection engine triggered
-2. **Engagement complete** — session reached `MAX_SESSION_MESSAGES`
-3. **Intelligence extracted** — accumulated throughout the conversation
+1. **`scamDetected = true`** — scam detection engine triggered.
+2. **Engagement complete** — session reached `MAX_SESSION_MESSAGES`.
+3. **Intelligence extracted** — PII, URLs, or Crypto/UPI accounts extracted during the conversation.
 
+Example webhook payload:
 ```json
 {
   "sessionId": "sess-abc123-def456",
@@ -185,11 +96,17 @@ The system sends a final intelligence report to the configured `CIPHER_CALLBACK_
 }
 ```
 
-## Testing
+## Contributing & Testing
 
+Refer to [CONTRIBUTING.md](CONTRIBUTING.md) for code styling.
+Testing the backend:
 ```bash
 cd backend
-python -m pytest tests/ -v --tb=short
+python -m pytest tests/ -v
+```
+Testing the Android worker pipeline without a carrier plan:
+```powershell
+.\frontend\scripts\loopback_test.ps1
 ```
 
 ## License

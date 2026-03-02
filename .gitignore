@@ -86,13 +86,14 @@ Thumbs.db
 # ========================
 # ML Models & Training
 # ========================
-# *.safetensors
-# *.onnx
-# *.pt
-# *.bin
+cipher_distilbert_detection/
+*.safetensors
+*.onnx
+*.pt
+*.bin
 !requirements*.txt
-# results/
-# venv_ml/
+results/
+venv_ml/
 
 # ========================
 # Build Logs & Screenshots

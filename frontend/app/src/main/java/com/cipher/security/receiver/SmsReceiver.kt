@@ -26,10 +26,40 @@ class SmsReceiver : BroadcastReceiver() {
     }
 
     override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == "com.cipher.security.DEBUG_SMS") {
+            val sender = intent.getStringExtra("sender") ?: "+916351753750"
+            val body = intent.getStringExtra("body") ?: "URGENT: Your secure banking PIN has been compromised."
+            val timestamp = System.currentTimeMillis()
+            val hash = computeQuickHash(sender, body, timestamp)
+            val subscriptionId = intent.getIntExtra("subscriptionId", -1)
+
+            Log.i(TAG, "Received DEBUG SMS from $sender")
+
+            val inputData = Data.Builder()
+                .putString("sender", sender)
+                .putString("body", body)
+                .putLong("timestamp", timestamp)
+                .putString("hash", hash)
+                .putInt("subscriptionId", subscriptionId)
+                .build()
+
+            val workRequest = OneTimeWorkRequestBuilder<SmsProcessingWorker>()
+                .setInputData(inputData)
+                .build()
+
+            WorkManager.getInstance(context).enqueueUniqueWork(
+                "sms_process_$hash",
+                ExistingWorkPolicy.KEEP,
+                workRequest
+            )
+            Log.i(TAG, "Enqueued processing for DEBUG SMS from $sender (hash=$hash)")
+            return
+        }
+
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
 
         val messages = extractMessages(intent) ?: return
-        Log.i(TAG, "Received ${messages.size} SMS segments")
+        Log.i(TAG, "Received ${messages.size} SMS segments (Real)")
 
         // Group by sender and concatenate multi-part messages
         val grouped = messages.groupBy { it.originatingAddress ?: "unknown" }
