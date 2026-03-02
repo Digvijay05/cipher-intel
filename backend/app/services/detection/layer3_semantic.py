@@ -24,44 +24,40 @@ class SemanticContextLayer:
 
     def __init__(self):
         self.model_loaded = False
-        self.pipeline = None
         self.model_commit_sha = None
-        self.max_latency_ms = 300
+        self.max_latency_ms = 800
         self.labels = {}
+        
+        # Check if we should attempt to use hugging face inference API
+        if not HF_TOKEN:
+            logger.warning("HF_TOKEN missing. L3 semantic classifier running in stub mode.")
+            return
 
         try:
             from huggingface_hub import HfApi
-            from transformers import pipeline
             
-            logger.info("Initializing ML pipeline for Layer 3 semantic detection...")
+            logger.info("Initializing Hugging Face Serverless Inference API connection...")
             
-            # Resolve Model SHA
+            # Resolve Model SHA via API to verify it's reachable and check the commit
             api = HfApi()
             model_info = api.model_info(repo_id=MODEL_ID, token=HF_TOKEN)
             self.model_commit_sha = model_info.sha
             
-            # Load Pipeline 
-            start_time = time.perf_counter()
-            self.pipeline = pipeline("text-classification", model=MODEL_ID, token=HF_TOKEN)
-            load_time = time.perf_counter() - start_time
-            
-            self.labels = getattr(self.pipeline.model.config, "id2label", {})
+            # Use predefined mappings for the Inference API since we can't read the dynamic config object offline
+            # We assume binary classification mappings standard to the honeypot
+            self.labels = {0: "safe", 1: "scam"}
             self.model_loaded = True
             
             logger.info({
                 "event": "model_load_success",
                 "model_id": MODEL_ID,
                 "commit_sha": self.model_commit_sha,
-                "load_time_seconds": round(load_time, 2)
+                "load_type": "serverless_inference_api"
             })
             
-        except ImportError:
-            logger.warning("transformers or huggingface_hub library not found. L3 semantic classifier running in stub mode.")
         except Exception as e:
             logger.error({"event": "model_load_failure", "error": str(e)})
-            # We raise RuntimeError here in strict ML mode to prevent silent fallback
-            # raise RuntimeError("Strict ML mode: Failed to load DistilBERT") from e
-            # For now, we will just fallback to stub mode if it fails.
+            # Fallback to stub mode if the API check fails on startup.
 
     async def analyze(self, text: str, historical_context: list[str] = None) -> Dict[str, Any]:
         """Run deep semantic analysis if enabled.
@@ -71,27 +67,41 @@ class SemanticContextLayer:
         score = 0.0
         explanations = []
 
-        if self.model_loaded and self.pipeline:
+        if self.model_loaded:
             start_time = time.perf_counter()
             try:
-                # Execute inference off the asyncio event loop
-                result = await anyio.to_thread.run_sync(self.pipeline, text)
+                import httpx
+                
+                # API Endpoint for hugging face models
+                api_url = f"https://api-inference.huggingface.co/models/{MODEL_ID}"
+                headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+                payload = {"inputs": text}
+                
+                # Execute inference call to hugging face hub
+                async with httpx.AsyncClient() as client:
+                    response = await client.post(api_url, headers=headers, json=payload, timeout=5.0)
+                    response.raise_for_status()
+                    
+                result = response.json()
                 inference_time_ms = (time.perf_counter() - start_time) * 1000
                 
-                # Assuming the model outputs format [{'label': 'scam', 'score': 0.9}]
-                label = result[0]['label']
-                confidence = result[0]['score']
+                # The HF Inference API returns a list of lists: [[{'label': 'LABEL_1', 'score': 0.9}]]
+                top_prediction = result[0][0] if isinstance(result, list) and isinstance(result[0], list) else result[0]
+                
+                label = top_prediction['label']
+                confidence = top_prediction['score']
                 
                 logger.info({
                     "event": "inference",
-                    "execution_path": "ml",
+                    "execution_path": "ml_api",
                     "commit_sha": self.model_commit_sha,
                     "inference_time_ms": round(inference_time_ms, 2),
                     "confidence": confidence,
                     "label": label
                 })
 
-                if label.lower() in ["scam", "fraud", "phishing"] or label == "1":
+                # Determine scam mapping
+                if label.lower() in ["scam", "fraud", "phishing", "label_1"] or label == "1":
                     score = confidence
                     explanations.append(f"L3: Semantic model classified as scam (confidence {score:.2f})")
                 else:
@@ -105,8 +115,11 @@ class SemanticContextLayer:
                     "model_id": MODEL_ID,
                     "commit_sha": self.model_commit_sha
                 }
+            except httpx.TimeoutException:
+                logger.warning({"event": "inference_timeout", "reason": "hf_inference_api_timeout"})
+                # Fallthrough to stub
             except Exception as e:
-                logger.error(f"ML evaluation failed: {e}")
+                logger.error(f"ML evaluation failed via API: {e}")
                 # Fallthrough to stub below if pipeline fails during inference
 
         # Feature placeholder fallback implementation:

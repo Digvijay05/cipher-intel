@@ -1,7 +1,7 @@
 """Schemas for the Scam Detection Engine."""
 
 from pydantic import BaseModel, ConfigDict
-from typing import List
+from typing import List, Optional
 
 
 class ScamSignal(BaseModel):
@@ -23,7 +23,7 @@ class ScamSignal(BaseModel):
     riskLevel: str
     explanations: List[str]
     execution_path: str = "rule_based"
-    inference_time_ms: float = None
+    inference_time_ms: Optional[float] = None
     
     # Backward compatibility with existing codebase
     @property
