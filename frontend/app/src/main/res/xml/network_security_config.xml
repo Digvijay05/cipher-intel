@@ -5,10 +5,11 @@
     
     <domain-config cleartextTrafficPermitted="false">
         <domain includeSubdomains="true">app.cipher.com</domain>
-        <!-- Add backend domain pin here when deployed -->
+        <!-- Add backend domain pin here when deployed
         <pin-set expiration="2027-01-01">
-            <!-- Example pin for testing / future production domain -->
-            <!-- <pin digest="SHA-256">BASE64_CERTIFICATE_HASH</pin> -->
+            Example pin for testing / future production domain
+            <pin digest="SHA-256">d060702814621744043738051186932414453321851853186518518518518518</pin>
         </pin-set>
+        -->
     </domain-config>
 </network-security-config>

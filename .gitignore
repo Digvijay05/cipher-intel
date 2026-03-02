@@ -25,6 +25,9 @@ captures/
 # ========================
 *.jks
 *.keystore
+/frontend/signing/
+/frontend/signing/*.keystore
+/frontend/signing/release.keystore
 *.b64
 *.pem
 keystore.properties
