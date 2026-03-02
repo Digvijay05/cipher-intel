@@ -76,7 +76,7 @@ class ScamAnalysis(Base):
     reason: Mapped[str] = mapped_column(Text)
     analyzed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
-    session: Mapped["Session"] = relationship("Session", back_populates="scam_analyses")
+    session: Mapped["Session"] = relationship("Session", back_populates="analysis")
 
 
 class ExtractedEntity(Base):
@@ -94,7 +94,7 @@ class ExtractedEntity(Base):
     source_text: Mapped[str] = mapped_column(Text)
     extracted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
-    session: Mapped["Session"] = relationship("Session", back_populates="extracted_entities")
+    session: Mapped["Session"] = relationship("Session", back_populates="entities")
 
 
 class ScammerProfile(Base):
