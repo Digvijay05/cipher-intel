@@ -22,6 +22,8 @@ class ScamSignal(BaseModel):
     confidenceScore: float
     riskLevel: str
     explanations: List[str]
+    execution_path: str = "rule_based"
+    inference_time_ms: float = None
     
     # Backward compatibility with existing codebase
     @property

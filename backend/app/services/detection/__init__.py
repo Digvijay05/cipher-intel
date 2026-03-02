@@ -11,7 +11,7 @@ from .layer1_heuristics import HeuristicsLayer, HEURISTIC_RULES
 # Singleton instance of the engine
 _engine = ScamDetectorEngine()
 
-def detect_scam(text: str, previous_session_score: float = 0.0) -> ScamSignal:
+async def detect_scam(text: str, previous_session_score: float = 0.0) -> ScamSignal:
     """Analyze text for scam intent using the multi-layer pipeline.
     
     Args:
@@ -21,6 +21,6 @@ def detect_scam(text: str, previous_session_score: float = 0.0) -> ScamSignal:
     Returns:
         Structured ScamSignal (scamDetected, confidenceScore, riskLevel, explanations)
     """
-    return _engine.detect_scam(text, previous_session_score)
+    return await _engine.detect_scam(text, previous_session_score)
 
 __all__ = ["detect_scam", "ScamSignal", "ScamDetectorEngine", "HeuristicsLayer", "HEURISTIC_RULES"]

@@ -32,7 +32,7 @@ class ScamDetectorEngine:
         if confidence >= 0.45: return "medium"
         return "low"
 
-    def detect_scam(self, text: str, previous_session_score: float = 0.0, alpha: float = 0.6) -> ScamSignal:
+    async def detect_scam(self, text: str, previous_session_score: float = 0.0, alpha: float = 0.6) -> ScamSignal:
         """Run the multi-layer pipeline over the incoming text.
         
         Args:
@@ -46,7 +46,9 @@ class ScamDetectorEngine:
         # Execute layers (could be async.gather in highly concurrent systems)
         res_l1 = self.l1.analyze(text)
         res_l2 = self.l2.analyze(text)
-        res_l3 = self.l3.analyze(text)
+        
+        # layer 3 is now async 
+        res_l3 = await self.l3.analyze(text)
         
         # Aggregate logic
         curr_score = (self.W1 * res_l1["score"]) + (self.W2 * res_l2["score"]) + (self.W3 * res_l3["score"])
@@ -73,5 +75,7 @@ class ScamDetectorEngine:
             scamDetected=final_confidence >= 0.45,
             confidenceScore=final_confidence,
             riskLevel=risk,
-            explanations=explanations
+            explanations=explanations,
+            execution_path=res_l3.get("execution_path", "rule_based"),
+            inference_time_ms=res_l3.get("inference_time_ms")
         )

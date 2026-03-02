@@ -28,6 +28,28 @@ async def get_feature_flags():
         kill_switch=False
     )
 
+@router.get("/api/v1/model/status")
+async def get_model_status():
+    """Check the explicit loading state of the Hugging Face transformer model."""
+    from app.services.detection.layer3_semantic import MODEL_ID, HF_TOKEN
+    from app.services.detection.engine import ScamDetectorEngine
+    
+    # Access the singleton engine's L3 Pipeline 
+    from app.services.detection import _engine
+    l3_layer = _engine.l3
+    
+    if not l3_layer.model_loaded:
+        from fastapi import Response
+        return Response(status_code=503, content="Model unavailable - System running on heuristic fallback")
+        
+    return {
+        "status": "online",
+        "model_id": MODEL_ID,
+        "commit_sha": l3_layer.model_commit_sha,
+        "labels": l3_layer.labels,
+        "device": str(l3_layer.pipeline.model.device) if l3_layer.pipeline else "unknown"
+    }
+
 
 @router.get("/health")
 async def health_check() -> dict:
@@ -46,6 +68,8 @@ class ThreatAnalysisResponse(BaseModel):
     confidence_score: float
     risk_level: str
     scam_detected: bool
+    execution_path: str = None
+    inference_time_ms: float = None
 
 @router.post("/api/v1/analyze", response_model=ThreatAnalysisResponse)
 async def analyze_message(
@@ -55,12 +79,14 @@ async def analyze_message(
     """Stateless scam detection for client-side risk assessment."""
     from app.services.detection import detect_scam
     
-    signal = detect_scam(req.message.text)
+    signal = await detect_scam(req.message.text)
     
     return ThreatAnalysisResponse(
         confidence_score=signal.confidenceScore,
         risk_level=signal.riskLevel,
-        scam_detected=signal.scamDetected
+        scam_detected=signal.scamDetected,
+        execution_path=signal.execution_path,
+        inference_time_ms=signal.inference_time_ms
     )
 
 
