@@ -28,10 +28,9 @@ class SemanticContextLayer:
         self.max_latency_ms = 800
         self.labels = {}
         
-        # Check if we should attempt to use hugging face inference API
+        # If HF_TOKEN is missing, we can still attempt to query public models
         if not HF_TOKEN:
-            logger.warning("HF_TOKEN missing. L3 semantic classifier running in stub mode.")
-            return
+            logger.warning("HF_TOKEN missing. Will attempt Inference API with public rate limits.")
 
         try:
             from huggingface_hub import HfApi
@@ -74,7 +73,10 @@ class SemanticContextLayer:
                 
                 # API Endpoint for hugging face models
                 api_url = f"https://api-inference.huggingface.co/models/{MODEL_ID}"
-                headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+                headers = {}
+                if HF_TOKEN:
+                    headers["Authorization"] = f"Bearer {HF_TOKEN}"
+                
                 payload = {"inputs": text}
                 
                 # Execute inference call to hugging face hub
