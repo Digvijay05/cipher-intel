@@ -48,10 +48,10 @@ android {
 
     signingConfigs {
         create("release") {
-            storeFile = file(System.getenv("KEYSTORE_PATH")?.trim() ?: "keystore.jks")
-            storePassword = System.getenv("KEYSTORE_PASSWORD")?.trim() ?: "dummy"
-            keyAlias = System.getenv("KEY_ALIAS")?.trim() ?: "dummy"
-            keyPassword = System.getenv("KEY_PASSWORD")?.trim() ?: "dummy"
+            storeFile = rootProject.file("signing/release.keystore")
+            storePassword = providers.environmentVariable("KEYSTORE_PASSWORD").orNull
+            keyAlias = providers.environmentVariable("KEY_ALIAS").orNull
+            keyPassword = providers.environmentVariable("KEY_PASSWORD").orNull
         }
     }
 
@@ -155,4 +155,20 @@ dependencies {
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
     androidTestImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
     androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+}
+
+tasks.whenTaskAdded {
+    if (name == "validateSigningRelease") {
+        doFirst {
+            val storePw = providers.environmentVariable("KEYSTORE_PASSWORD").orNull
+            val keyPw = providers.environmentVariable("KEY_PASSWORD").orNull
+            val alias = providers.environmentVariable("KEY_ALIAS").orNull
+            val keystoreFile = rootProject.file("signing/release.keystore")
+
+            require(!storePw.isNullOrBlank()) { "❌ BUILD FAILED: Missing environment variable: KEYSTORE_PASSWORD" }
+            require(!keyPw.isNullOrBlank()) { "❌ BUILD FAILED: Missing environment variable: KEY_PASSWORD" }
+            require(!alias.isNullOrBlank()) { "❌ BUILD FAILED: Missing environment variable: KEY_ALIAS" }
+            require(keystoreFile.exists()) { "❌ BUILD FAILED: Keystore file not found at ${keystoreFile.absolutePath}" }
+        }
+    }
 }
