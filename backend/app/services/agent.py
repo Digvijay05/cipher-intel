@@ -86,7 +86,7 @@ class AgentController:
 
         # 2. Run scam detection ONLY if in initial state
         if session.state in ["idle", "detecting"]:
-            scam_result = detect_scam(message.text, previous_session_score=session.scam_score)
+            scam_result = await detect_scam(message.text, previous_session_score=session.scam_score)
             
             if scam_result.scamDetected:
                 session.scam_score = max(session.scam_score, scam_result.confidenceScore)

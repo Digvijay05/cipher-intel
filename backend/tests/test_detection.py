@@ -37,10 +37,11 @@ class TestScamRules:
 class TestMultiLayerScamScorer:
     """Test the ensemble engine and routing logic."""
 
-    def test_scam_detected_above_threshold(self) -> None:
+    @pytest.mark.asyncio
+    async def test_scam_detected_above_threshold(self) -> None:
         """Test that high-signal messages trigger scam detection."""
         text = "Your account is blocked! Verify immediately with OTP. Send money to scam@ybl using https://scam.xyz/"
-        result = detect_scam(text)
+        result = await detect_scam(text)
 
         assert getattr(result, "scamDetected") is True
         assert result.scamDetected is True
@@ -48,49 +49,55 @@ class TestMultiLayerScamScorer:
         assert result.riskLevel in ["medium", "high", "critical"]
         assert len(result.explanations) > 0
 
-    def test_lottery_scam_detected(self) -> None:
+    @pytest.mark.asyncio
+    async def test_lottery_scam_detected(self) -> None:
         """Test that lottery/prize scams are detected."""
         text = "Congratulations! You won Rs 50,000 lottery prize. Contact urgently to claim via link: http://bit.ly/claim and pay fee."
-        result = detect_scam(text)
+        result = await detect_scam(text)
         assert result.scamDetected is True
         assert result.confidenceScore >= 0.5
 
-    def test_kyc_scam_detected(self) -> None:
+    @pytest.mark.asyncio
+    async def test_kyc_scam_detected(self) -> None:
         """Test that KYC expiration scams are detected."""
         text = "Your HDFC bank KYC has expired. Update your KYC urgently at https://scam.xyz/kyc otherwise your account will be blocked."
-        result = detect_scam(text)
+        result = await detect_scam(text)
         assert result.scamDetected is True
         assert result.confidenceScore >= 0.5
 
-    def test_job_scam_detected(self) -> None:
+    @pytest.mark.asyncio
+    async def test_job_scam_detected(self) -> None:
         """Test that employment scams are detected."""
         text = "Earn Rs 5000 daily income from home part time. Click this link: http://bit.ly/job to transfer urgently or face legal action."
-        result = detect_scam(text)
+        result = await detect_scam(text)
         assert result.scamDetected is True
         assert result.confidenceScore >= 0.5
 
-    def test_no_scam_below_threshold(self) -> None:
+    @pytest.mark.asyncio
+    async def test_no_scam_below_threshold(self) -> None:
         """Test that low-signal messages don't trigger scam detection."""
         text = "Hello, can you help me with my order?"
-        result = detect_scam(text)
+        result = await detect_scam(text)
         assert result.scamDetected is False
         assert result.confidenceScore < 0.5
         assert result.riskLevel == "low"
 
-    def test_session_decay_memory(self) -> None:
+    @pytest.mark.asyncio
+    async def test_session_decay_memory(self) -> None:
         """Test that the engine tracks historical risk."""
         text = "Hello there"
 
-        result_clean = detect_scam(text)
+        result_clean = await detect_scam(text)
         assert result_clean.scamDetected is False
 
-        result_decay = detect_scam(text, previous_session_score=0.95)
+        result_decay = await detect_scam(text, previous_session_score=0.95)
         assert result_decay.scamDetected is True
         assert result_decay.confidenceScore >= 0.57
         assert any("Session risk elevated" in expl for expl in result_decay.explanations)
 
-    def test_confidence_is_capped(self) -> None:
+    @pytest.mark.asyncio
+    async def test_confidence_is_capped(self) -> None:
         """Test that confidence never exceeds 1.0."""
         text = "URGENT! Account blocked! Legal action! Send OTP to scam@ybl immediately! Pay fine of Rs 5000!"
-        result = detect_scam(text)
+        result = await detect_scam(text)
         assert result.confidenceScore <= 1.0
