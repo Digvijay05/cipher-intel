@@ -1,0 +1,87 @@
+# ========================
+# Git & General
+# ========================
+.git
+.github
+.gitignore
+.gitattributes
+
+# ========================
+# Frontend App
+# ========================
+frontend/
+
+# ========================
+# ML Models & Datasets
+# ========================
+cipher_distilbert_detection/
+datasets/
+results/
+venv_ml/
+train_sms_model.py
+inspect_data.py
+
+# ========================
+# Python Environments & Cache
+# ========================
+venv/
+env/
+.venv
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+*.egg
+*.egg-info/
+.cache/
+
+# ========================
+# Databases
+# ========================
+*.sqlite3
+*.db
+cipher.db
+honeypot.db
+
+# ========================
+# Secrets & Env Vars
+# ========================
+.env
+.env.*
+!.env.example
+*.pem
+*.b64
+*.jks
+*.keystore
+
+# ========================
+# IDE & OS
+# ========================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# ========================
+# Misc project files
+# ========================
+scripts/
+docs/
+docker-compose.yml
+test_out.txt
+pytest_out.txt
+logcat.txt
+*.log
+*.log.*
+*.txt
+!backend/requirements.txt
