@@ -14,9 +14,9 @@ class BehavioralNLPLayer:
 
     def __init__(self):
         # Stub weights derived from production TF-IDF coefficients for scam probability
-        self.coercion_lexicon = {"immediate": 0.2, "action": 0.2, "suspended": 0.3, "blocked": 0.3, "locked": 0.3, "disabled": 0.3}
+        self.coercion_lexicon = {"immediate": 0.2, "immediately": 0.2, "action": 0.2, "suspended": 0.3, "blocked": 0.3, "locked": 0.3, "disabled": 0.3}
         self.legal_threat_lexicon = {"arrest": 0.4, "warrant": 0.4, "legal": 0.3, "court": 0.3, "lawsuit": 0.4, "prosecution": 0.4, "penalty": 0.3, "fine": 0.3, "charge": 0.15}
-        self.urgency_lexicon = {"urgently": 0.25, "now": 0.15, "within": 0.2, "hours": 0.1, "minutes": 0.2}
+        self.urgency_lexicon = {"urgent": 0.25, "urgently": 0.25, "now": 0.15, "within": 0.2, "hours": 0.1, "minutes": 0.2}
         self.financial_verb_lexicon = {"transfer": 0.3, "send": 0.2, "pay": 0.3, "deposit": 0.25}
 
     def _tokenize(self, text: str) -> list[str]:

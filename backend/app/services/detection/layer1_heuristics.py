@@ -82,6 +82,12 @@ HEURISTIC_RULES: List[HeuristicRule] = [
         weight=0.40,
         description="L1: KYC verification/update urgency",
     ),
+    HeuristicRule(
+        name="account_suspension",
+        pattern=re.compile(r"\b(account.*suspended|verify.*identity|login.*immediately|account.*locked|unauthorize.*access)\b", re.IGNORECASE),
+        weight=0.85,
+        description="L1: Account suspension / phishing verification lure",
+    ),
     # Obfuscation anomalies
     HeuristicRule(
         name="obfuscated_text",
