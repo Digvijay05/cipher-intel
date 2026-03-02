@@ -34,8 +34,9 @@ class SmsProcessingWorker(
         val sender = inputData.getString("sender") ?: return@withContext Result.failure()
         val body = inputData.getString("body") ?: return@withContext Result.failure()
         val timestamp = inputData.getLong("timestamp", System.currentTimeMillis())
+        val subscriptionId = inputData.getInt("subscriptionId", -1)
 
-        Log.d(TAG, "Processing SMS from $sender (${body.take(40)}...)")
+        Log.i(TAG, "Processing SMS from $sender (${body.take(40)}...)")
 
         return@withContext try {
             // Feature flag check: Sync configs then abort if Kill Switch is engaged remotely
@@ -54,7 +55,7 @@ class SmsProcessingWorker(
             val threat = repository.processIncomingSms(sender, body, timestamp)
 
             if (threat == null) {
-                Log.d(TAG, "Message was duplicate or rate-limited. Skipping.")
+                Log.i(TAG, "Message was duplicate or rate-limited. Skipping.")
                 return@withContext Result.success()
             }
 
@@ -67,15 +68,15 @@ class SmsProcessingWorker(
                     threatId = threat.id,
                     messagePreview = body.take(120)
                 )
-                Log.d(TAG, "High-risk threat notification dispatched for ID=${threat.id}")
+                Log.i(TAG, "High-risk threat notification dispatched for ID=${threat.id}")
             }
 
             // Phase 7: Trigger autonomous engagement for confirmed scams
             if (threat.scamDetected && threat.riskLevel in listOf("medium","high", "critical")) {
-                enqueueEngagement(sender, body, timestamp)
+                enqueueEngagement(sender, body, timestamp, subscriptionId)
             }
 
-            Log.d(TAG, "Processing complete: risk=${threat.riskLevel} scam=${threat.scamDetected}")
+            Log.i(TAG, "Processing complete: risk=${threat.riskLevel} scam=${threat.scamDetected}")
             Result.success()
         } catch (e: Exception) {
             Log.e(TAG, "Processing failed for SMS from $sender", e)
@@ -91,11 +92,12 @@ class SmsProcessingWorker(
      * Enqueue the EngagementWorker to start or continue autonomous scam engagement.
      * Uses KEEP policy so only one engagement per sender is active at a time.
      */
-    private fun enqueueEngagement(sender: String, body: String, timestamp: Long) {
+    private fun enqueueEngagement(sender: String, body: String, timestamp: Long, subscriptionId: Int) {
         val engagementData = Data.Builder()
             .putString("sender", sender)
             .putString("body", body)
             .putLong("timestamp", timestamp)
+            .putInt("subscriptionId", subscriptionId)
             .build()
 
         val engagementWork = OneTimeWorkRequestBuilder<EngagementWorker>()

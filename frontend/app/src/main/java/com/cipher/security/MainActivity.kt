@@ -18,6 +18,20 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
+        // Request SMS permissions for testing
+        if (checkSelfPermission(android.Manifest.permission.SEND_SMS) != PackageManager.PERMISSION_GRANTED ||
+            checkSelfPermission(android.Manifest.permission.RECEIVE_SMS) != PackageManager.PERMISSION_GRANTED ||
+            checkSelfPermission(android.Manifest.permission.READ_PHONE_STATE) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(
+                arrayOf(
+                    android.Manifest.permission.SEND_SMS,
+                    android.Manifest.permission.RECEIVE_SMS,
+                    android.Manifest.permission.READ_PHONE_STATE
+                ),
+                1001
+            )
+        }
+        
         val rootBeer = RootBeer(this)
         if (rootBeer.isRooted) {
             Toast.makeText(this, "Device environment is insecure.", Toast.LENGTH_LONG).show()

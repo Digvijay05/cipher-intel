@@ -59,5 +59,13 @@
             </intent-filter>
         </receiver>
 
+        <!-- SMS Delivery Tracking Receiver -->
+        <receiver android:name=".receiver.SmsDeliveryReceiver" android:exported="false">
+            <intent-filter>
+                <action android:name="com.cipher.security.SMS_SENT" />
+                <action android:name="com.cipher.security.SMS_DELIVERED" />
+            </intent-filter>
+        </receiver>
+
     </application>
 </manifest>

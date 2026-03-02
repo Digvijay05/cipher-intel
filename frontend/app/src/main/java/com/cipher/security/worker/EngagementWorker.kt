@@ -2,6 +2,9 @@ package com.cipher.security.worker
 
 
 import android.content.Context
+import android.content.Intent
+import android.app.PendingIntent
+import android.os.Build
 import android.telephony.SmsManager
 import android.util.Log
 import androidx.work.CoroutineWorker
@@ -50,17 +53,18 @@ class EngagementWorker(
         val sender = inputData.getString("sender") ?: return@withContext Result.failure()
         val body = inputData.getString("body") ?: return@withContext Result.failure()
         val incomingTimestamp = inputData.getLong("timestamp", System.currentTimeMillis())
+        val subscriptionId = inputData.getInt("subscriptionId", -1)
 
         val db = AppDatabase.getDatabase(applicationContext)
         val dao = db.engagementDao()
         val now = System.currentTimeMillis()
 
-        Log.d(TAG, "Processing engagement for sender=$sender")
+        Log.i(TAG, "Processing engagement for sender=$sender")
 
         // Kill switch: check if engagement is enabled via FeatureFlagManager
         val flags = FeatureFlagManager.getInstance(applicationContext)
         if (!flags.isEngagementEnabled) {
-            Log.d(TAG, "Engagement disabled via kill switch")
+            Log.i(TAG, "Engagement disabled via kill switch")
             return@withContext Result.success()
         }
 
@@ -88,21 +92,21 @@ class EngagementWorker(
                 lastActivityAt = now
             )
             dao.insertSession(session)
-            Log.d(TAG, "Created new engagement session: ${session.sessionId}")
+            Log.i(TAG, "Created new engagement session: ${session.sessionId}")
         }
 
         val currentSession = session!!
 
         // Safety: check message cap
         if (currentSession.messageCount >= currentSession.maxMessages) {
-            Log.d(TAG, "Session ${currentSession.sessionId} reached max messages. Completing.")
+            Log.i(TAG, "Session ${currentSession.sessionId} reached max messages. Completing.")
             dao.updateState(currentSession.id, EngagementState.COMPLETED, now)
             return@withContext Result.success()
         }
 
         // Safety: rate limit outgoing replies
         if (!isNewSession && (now - currentSession.lastActivityAt) < MIN_REPLY_INTERVAL_MS) {
-            Log.d(TAG, "Rate limited. Retrying later.")
+            Log.i(TAG, "Rate limited. Retrying later.")
             return@withContext Result.retry()
         }
 
@@ -165,7 +169,7 @@ class EngagementWorker(
 
             // Handle completed session
             if (engageResponse.status == EngageStatus.COMPLETED) {
-                Log.d(TAG, "Session completed by backend.")
+                Log.i(TAG, "Session completed by backend.")
                 dao.updateState(currentSession.id, EngagementState.COMPLETED, System.currentTimeMillis())
                 return@withContext Result.success()
             }
@@ -178,17 +182,89 @@ class EngagementWorker(
 
             // Send SMS reply to scammer
             try {
-                @Suppress("DEPRECATION")
-                val smsManager = SmsManager.getDefault()
+                // Safely acquire the SmsManager for the precise SIM card
+                val smsManager = if (subscriptionId != -1) {
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        applicationContext.getSystemService(SmsManager::class.java)
+                            .createForSubscriptionId(subscriptionId)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        SmsManager.getSmsManagerForSubscriptionId(subscriptionId)
+                    }
+                } else {
+                    // Fallback
+                    if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                        applicationContext.getSystemService(SmsManager::class.java)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        SmsManager.getDefault()
+                    }
+                }
+
+                val sentIntent = android.content.Intent("com.cipher.security.SMS_SENT").apply {
+                    setPackage(applicationContext.packageName)
+                    putExtra("sender", sender)
+                    putExtra("subscriptionId", subscriptionId)
+                }
+                val sentPendingIntent = android.app.PendingIntent.getBroadcast(
+                    applicationContext,
+                    System.currentTimeMillis().toInt(),
+                    sentIntent,
+                    android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
+                )
+
+                val deliveredIntent = android.content.Intent("com.cipher.security.SMS_DELIVERED").apply {
+                    setPackage(applicationContext.packageName)
+                    putExtra("sender", sender)
+                    putExtra("subscriptionId", subscriptionId)
+                }
+                val deliveredPendingIntent = android.app.PendingIntent.getBroadcast(
+                    applicationContext,
+                    System.currentTimeMillis().toInt(),
+                    deliveredIntent,
+                    android.app.PendingIntent.FLAG_IMMUTABLE or android.app.PendingIntent.FLAG_UPDATE_CURRENT
+                )
 
                 // Split long messages into multipart
                 val parts = smsManager.divideMessage(reply)
-                if (parts.size > 1) {
-                    smsManager.sendMultipartTextMessage(sender, null, parts, null, null)
-                } else {
-                    smsManager.sendTextMessage(sender, null, reply, null, null)
+        if (parts.size > 1) {
+            val sentIntents = ArrayList<android.app.PendingIntent>()
+            val deliveredIntents = ArrayList<android.app.PendingIntent>()
+            
+            for (i in parts.indices) {
+                val uniqueSentIntent = Intent("com.cipher.security.SMS_SENT").apply {
+                    setPackage(applicationContext.packageName)
+                    putExtra("sender", sender)
+                    putExtra("subscriptionId", subscriptionId)
+                    putExtra("part", i)
                 }
-                Log.d(TAG, "SMS reply sent to $sender: ${reply.take(50)}...")
+                val uniqueSentPi = PendingIntent.getBroadcast(
+                    applicationContext,
+                    (System.currentTimeMillis() % 100000).toInt() + i, 
+                    uniqueSentIntent,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                )
+                sentIntents.add(uniqueSentPi)
+                
+                val uniqueDeliveredIntent = Intent("com.cipher.security.SMS_DELIVERED").apply {
+                    setPackage(applicationContext.packageName)
+                    putExtra("sender", sender)
+                    putExtra("subscriptionId", subscriptionId)
+                    putExtra("part", i)
+                }
+                val uniqueDelivPi = PendingIntent.getBroadcast(
+                    applicationContext,
+                    (System.currentTimeMillis() % 100000).toInt() + i + 1000,
+                    uniqueDeliveredIntent,
+                    PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+                )
+                deliveredIntents.add(uniqueDelivPi)
+            }
+            smsManager.sendMultipartTextMessage(sender, null, parts, sentIntents, deliveredIntents)
+        } else {
+            smsManager.sendTextMessage(sender, null, reply, sentPendingIntent, deliveredPendingIntent)
+        }
+        Log.i(TAG, "SMS reply sent to $sender (SIM: $subscriptionId): ${reply.take(50)}...")
             } catch (e: Exception) {
                 Log.e(TAG, "SmsManager.sendTextMessage failed", e)
                 // Do not fail the worker — message is persisted, retry on next trigger

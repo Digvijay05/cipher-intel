@@ -84,6 +84,17 @@ Thumbs.db
 *.swo
 
 # ========================
+# ML Models & Training
+# ========================
+*.safetensors
+*.onnx
+*.pt
+*.bin
+!requirements*.txt
+results/
+venv_ml/
+
+# ========================
 # Build Logs & Screenshots
 # ========================
 *.png

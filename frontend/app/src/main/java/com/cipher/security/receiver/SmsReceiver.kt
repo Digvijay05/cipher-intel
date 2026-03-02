@@ -29,10 +29,17 @@ class SmsReceiver : BroadcastReceiver() {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
 
         val messages = extractMessages(intent) ?: return
-        Log.d(TAG, "Received ${messages.size} SMS segments")
+        Log.i(TAG, "Received ${messages.size} SMS segments")
 
         // Group by sender and concatenate multi-part messages
         val grouped = messages.groupBy { it.originatingAddress ?: "unknown" }
+
+        // Extract correct subscription ID, supporting both modern and legacy Dual-SIM extras
+        val fallbackSubId = android.telephony.SubscriptionManager.getDefaultSmsSubscriptionId()
+        val subscriptionId = intent.getIntExtra(
+            android.telephony.SubscriptionManager.EXTRA_SUBSCRIPTION_INDEX,
+            intent.getIntExtra("subscription", fallbackSubId)
+        )
 
         for ((sender, parts) in grouped) {
             val body = parts.joinToString("") { it.messageBody ?: "" }
@@ -47,6 +54,7 @@ class SmsReceiver : BroadcastReceiver() {
                 .putString("body", body)
                 .putLong("timestamp", timestamp)
                 .putString("hash", hash)
+                .putInt("subscriptionId", subscriptionId) // Pass it through
                 .build()
 
             val workRequest = OneTimeWorkRequestBuilder<SmsProcessingWorker>()
@@ -59,7 +67,7 @@ class SmsReceiver : BroadcastReceiver() {
                 workRequest
             )
 
-            Log.d(TAG, "Enqueued processing for SMS from $sender (hash=$hash)")
+            Log.i(TAG, "Enqueued processing for SMS from $sender (hash=$hash)")
         }
     }
 

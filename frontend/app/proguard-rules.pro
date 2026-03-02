@@ -27,6 +27,12 @@
 -keep class * extends androidx.work.CoroutineWorker {
     public <init>(android.content.Context, androidx.work.WorkerParameters);
 }
+-keep class com.cipher.security.worker.EngagementWorker { *; }
+-keep class com.cipher.security.worker.SmsProcessingWorker { *; }
+
+# Receivers
+-keep class com.cipher.security.receiver.SmsReceiver { *; }
+-keep class com.cipher.security.receiver.SmsDeliveryReceiver { *; }
 
 # Room
 -keep class * extends androidx.room.RoomDatabase
